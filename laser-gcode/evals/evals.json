@@ -1,0 +1,26 @@
+{
+  "skill_name": "laser-gcode",
+  "evals": [
+    {
+      "id": 1,
+      "name": "maple-leaf-cut",
+      "prompt": "我有一张枫叶的轮廓图，从顶部尖角顺时针的顶点坐标如下（归一化到 0-100 网格，原点在左上角）：50,2 57,18 71,16 62,35 98,43 78,62 93,68 65,75 68,85 53,80 53,98 47,98 47,80 32,85 35,75 7,68 22,62 2,43 38,35 29,16 43,18 50,2。我想用我的 10W 二极管激光在 3mm 椴木板上把它切出来，大概 80mm 见方就行。帮我生成可以直接上机的 G 代码，并告诉我该用多少功率和速度。",
+      "expected_output": "生成一个 .gcode 文件，使用 scripts/generate_gcode.py，job=cut，material=plywood_3mm，laser-w=10，target-size 80 80。参数摘要应反映材料库 10W 档：S1000、feed≈500、passes=2。G 代码应包含 G21/G90/M3 S1000/G1 F500/沿 22 个顶点闭合/M5/M2，且 Y 轴已翻转（顶部尖角在 Y≈78 而非 Y≈2）。应附安全提示。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "svg-fill-engrave",
+      "prompt": "我做了个星星 logo 的 SVG 文件，路径在 evals/assets/star_logo.svg（相对 skill 目录）。我想在深色亚克力上雕刻填充这个 logo（不是切穿，是把内部填满），机器是 20W 的，最终尺寸 50mm 见方。帮我生成 G 代码和参数。",
+      "expected_output": "使用 --svg 与 --job fill，material=acrylic_dark_3mm，laser-w=20，target-size 50 50。复用 engrave 档参数（20W 亚克力 engrave：power≈35、feed≈4000）。G 代码含 hatch 扫描线、boustrophedon、M3 S350 左右。应说明填充是雕刻、间距含义，并提示亚克力需通风、二极管不能切透明亚克力。",
+      "files": ["evals/assets/star_logo.svg"]
+    },
+    {
+      "id": 3,
+      "name": "leather-params-and-gcode",
+      "prompt": "我想在 2mm 植鞣皮革上切一些小挂件形状，机器是 20W 二极管激光。我不太确定该用多少功率和速度，能帮我定个参数并生成 G 代码吗？形状是一个简单的圆，直径 40mm，你可以用顶点近似一个圆（比如 24 段）。",
+      "expected_output": "应选用 material=leather_2mm、laser-w=20，给出 20W 档切割参数（power≈90、feed≈800、passes=1，S≈900）。应自行生成圆的 24 段顶点（归一化 0-100，圆心 50,50，半径约 48），用脚本生成 cut G 代码，target-size 40 40。应提示皮革需通风、测试是否变黑。",
+      "files": []
+    }
+  ]
+}

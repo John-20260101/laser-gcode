@@ -1,0 +1,37 @@
+Maple Leaf Outline — Laser Cut Summary
+========================================
+File: maple_leaf_cut.gcode
+
+Material : 3mm basswood (椴木板)
+Laser   : 10W diode laser
+Target  : ~80mm x 80mm (normalized 0-100 grid scaled by 0.8)
+
+Cut Parameters
+--------------
+Power   : 100% (S1000, full 10W)
+Feed    : 250 mm/min (~4.2 mm/s)
+Passes  : 2
+
+Coordinate System
+-----------------
+Origin : TOP-LEFT
+Y axis : increases downward (screen/image style)
+Scale  : x_mm = x_norm * 0.8, y_mm = y_norm * 0.8
+
+Safety Notes
+------------
+- ALWAYS verify laser is OFF (M5) before leaving the machine.
+- Wear certified laser safety goggles (for your laser's wavelength, ~450nm diode).
+- Keep a fire extinguisher nearby; basswood can char/flame.
+- Do not leave the machine unattended while cutting.
+- Run a small test cut first to confirm focus and through-cut on YOUR material.
+- Ensure good ventilation/exhaust; diode cutting produces smoke.
+- If your controller uses a different S-max (e.g. S255), rescale the S value.
+- If your machine origin is BOTTOM-LEFT (GRBL default), mirror Y:
+    y_new = 80 - y_old  (or set $23=1 to invert Y homing).
+
+Tuning Tips
+-----------
+- If not cutting through: reduce feed to ~150-200 mm/min or add a 3rd pass.
+- If excessive charring: increase feed to ~300-350 mm/min or reduce passes to 1.
+- Focus is critical: set focus at the material surface for best cut quality.

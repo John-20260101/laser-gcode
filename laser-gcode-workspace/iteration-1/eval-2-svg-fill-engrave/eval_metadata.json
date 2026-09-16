@@ -1,0 +1,15 @@
+{
+  "eval_id": 2,
+  "eval_name": "svg-fill-engrave",
+  "prompt": "星星logo SVG，20W机器在深色亚克力上填充雕刻（不切穿），50mm见方，生成G代码和参数",
+  "assertions": [
+    {"text": "生成了一个 .gcode 文件并保存到 outputs 目录"},
+    {"text": "作业类型为填充雕刻 fill（G 代码含 hatch 扫描线，而非仅单条轮廓）"},
+    {"text": "使用了材料库 acrylic_dark_3mm 的雕刻参数（非切割参数）"},
+    {"text": "激光功率对应 20W 亚克力雕刻档：S≈350（power≈35%）"},
+    {"text": "进给速度 F≈4000（20W亚克力雕刻档）"},
+    {"text": "目标尺寸为 50mm 见方"},
+    {"text": "说明了 hatch 间距的含义/取值"},
+    {"text": "包含亚克力相关安全提示（通风 / 二极管不能切透明亚克力）"}
+  ]
+}

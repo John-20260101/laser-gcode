@@ -1,0 +1,81 @@
+{
+  "_note": "Starting points for diode lasers. S = power_percent/100 * grbl_max_s. Always test on scrap first. tiers keyed by optical wattage.",
+  "plywood_3mm": {
+    "name": "Plywood / Basswood 3mm",
+    "tiers": {
+      "5":  {"cut": {"power": 100, "feed": 300, "passes": 3},  "engrave": {"power": 55, "feed": 3000, "passes": 1}},
+      "10": {"cut": {"power": 100, "feed": 500, "passes": 2},  "engrave": {"power": 40, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 90,  "feed": 1000, "passes": 1}, "engrave": {"power": 30, "feed": 6000, "passes": 1}},
+      "40": {"cut": {"power": 70,  "feed": 1500, "passes": 1}, "engrave": {"power": 20, "feed": 8000, "passes": 1}}
+    }
+  },
+  "plywood_6mm": {
+    "name": "Plywood 6mm",
+    "tiers": {
+      "10": {"cut": {"power": 100, "feed": 200, "passes": 4}, "engrave": {"power": 40, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 100, "feed": 500, "passes": 2}, "engrave": {"power": 30, "feed": 6000, "passes": 1}},
+      "40": {"cut": {"power": 90,  "feed": 800, "passes": 1}, "engrave": {"power": 20, "feed": 8000, "passes": 1}}
+    }
+  },
+  "hardwood": {
+    "name": "Hardwood (maple/oak/walnut)",
+    "tiers": {
+      "5":  {"cut": {"power": 100, "feed": 200, "passes": 4}, "engrave": {"power": 70, "feed": 2000, "passes": 1}},
+      "10": {"cut": {"power": 100, "feed": 350, "passes": 3}, "engrave": {"power": 50, "feed": 4000, "passes": 1}},
+      "20": {"cut": {"power": 100, "feed": 700, "passes": 2}, "engrave": {"power": 35, "feed": 5000, "passes": 1}},
+      "40": {"cut": {"power": 90,  "feed": 1200, "passes": 1}, "engrave": {"power": 25, "feed": 7000, "passes": 1}}
+    }
+  },
+  "mdf_3mm": {
+    "name": "MDF 3mm (chars easily, use air assist)",
+    "tiers": {
+      "10": {"cut": {"power": 100, "feed": 300, "passes": 3}, "engrave": {"power": 40, "feed": 4500, "passes": 1}},
+      "20": {"cut": {"power": 100, "feed": 700, "passes": 2}, "engrave": {"power": 30, "feed": 6000, "passes": 1}},
+      "40": {"cut": {"power": 85,  "feed": 1100, "passes": 1}, "engrave": {"power": 20, "feed": 8000, "passes": 1}}
+    }
+  },
+  "acrylic_dark_3mm": {
+    "name": "Dark/cast acrylic 3mm (diodes cannot cut clear acrylic)",
+    "tiers": {
+      "5":  {"cut": {"power": 100, "feed": 200, "passes": 6}, "engrave": {"power": 65, "feed": 2000, "passes": 1}},
+      "10": {"cut": {"power": 100, "feed": 300, "passes": 3}, "engrave": {"power": 45, "feed": 3500, "passes": 1}},
+      "20": {"cut": {"power": 100, "feed": 600, "passes": 2}, "engrave": {"power": 35, "feed": 4000, "passes": 1}},
+      "40": {"cut": {"power": 100, "feed": 900, "passes": 1}, "engrave": {"power": 25, "feed": 5000, "passes": 1}}
+    }
+  },
+  "leather_2mm": {
+    "name": "Vegetable-tanned leather 2-3mm (ventilate, test for darkening)",
+    "tiers": {
+      "5":  {"cut": {"power": 100, "feed": 400, "passes": 3}, "engrave": {"power": 30, "feed": 3000, "passes": 1}},
+      "10": {"cut": {"power": 100, "feed": 600, "passes": 2}, "engrave": {"power": 20, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 90,  "feed": 800, "passes": 1}, "engrave": {"power": 15, "feed": 6000, "passes": 1}},
+      "40": {"cut": {"power": 80,  "feed": 1200, "passes": 1}, "engrave": {"power": 10, "feed": 8000, "passes": 1}}
+    }
+  },
+  "cardboard_2mm": {
+    "name": "Cardboard / corrugated 2mm",
+    "tiers": {
+      "5":  {"cut": {"power": 80, "feed": 500, "passes": 2}, "engrave": {"power": 30, "feed": 3000, "passes": 1}},
+      "10": {"cut": {"power": 60, "feed": 800, "passes": 1}, "engrave": {"power": 25, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 50, "feed": 1500, "passes": 1}, "engrave": {"power": 18, "feed": 7000, "passes": 1}},
+      "40": {"cut": {"power": 35, "feed": 2500, "passes": 1}, "engrave": {"power": 12, "feed": 9000, "passes": 1}}
+    }
+  },
+  "paper": {
+    "name": "Paper / cardstock",
+    "tiers": {
+      "5":  {"cut": {"power": 40, "feed": 1000, "passes": 1}, "engrave": {"power": 20, "feed": 4000, "passes": 1}},
+      "10": {"cut": {"power": 25, "feed": 1500, "passes": 1}, "engrave": {"power": 15, "feed": 6000, "passes": 1}},
+      "20": {"cut": {"power": 18, "feed": 2500, "passes": 1}, "engrave": {"power": 10, "feed": 8000, "passes": 1}},
+      "40": {"cut": {"power": 12, "feed": 4000, "passes": 1}, "engrave": {"power": 8,  "feed": 10000, "passes": 1}}
+    }
+  },
+  "anodized_aluminum": {
+    "name": "Anodized aluminum (marking only, removes anodize layer)",
+    "tiers": {
+      "10": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 90, "feed": 3000, "passes": 2}},
+      "20": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 80, "feed": 3000, "passes": 2}},
+      "40": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 70, "feed": 4000, "passes": 1}}
+    }
+  }
+}

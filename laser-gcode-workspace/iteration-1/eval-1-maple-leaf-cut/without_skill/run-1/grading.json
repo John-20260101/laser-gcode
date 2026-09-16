@@ -1,0 +1,62 @@
+{
+  "eval_id": 1,
+  "run": "without_skill",
+  "summary": {
+    "pass_rate": 0.8,
+    "passed": 8,
+    "failed": 2,
+    "total": 10
+  },
+  "expectations": [
+    {
+      "text": "生成了一个 .gcode 文件并保存到 outputs 目录",
+      "passed": true,
+      "evidence": "['maple_leaf_cut.gcode']"
+    },
+    {
+      "text": "G 代码包含 GRBL 初始化指令 G21 和 G90",
+      "passed": true,
+      "evidence": "G21/G90"
+    },
+    {
+      "text": "G 代码包含激光开启 M3 和关闭 M5 指令",
+      "passed": true,
+      "evidence": "M3/M5"
+    },
+    {
+      "text": "激光功率 S=1000",
+      "passed": true,
+      "evidence": "S1000"
+    },
+    {
+      "text": "进给速度 F=500",
+      "passed": false,
+      "evidence": "F500"
+    },
+    {
+      "text": "切割遍数 passes=2",
+      "passed": true,
+      "evidence": "passes=2"
+    },
+    {
+      "text": "目标尺寸为 80mm",
+      "passed": true,
+      "evidence": "max X=78.4 Y=78.4"
+    },
+    {
+      "text": "Y 轴已翻转：顶部尖角在 Y≈78",
+      "passed": false,
+      "evidence": "first G0 Y=0.0"
+    },
+    {
+      "text": "G 代码沿全部 22 个顶点闭合",
+      "passed": true,
+      "evidence": "G1 count=43"
+    },
+    {
+      "text": "包含安全提示",
+      "passed": true,
+      "evidence": "safety kw"
+    }
+  ]
+}

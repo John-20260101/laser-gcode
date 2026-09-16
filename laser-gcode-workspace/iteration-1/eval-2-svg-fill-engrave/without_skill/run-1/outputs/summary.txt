@@ -1,0 +1,44 @@
+Star Logo - Hatch Fill Engrave - Summary
+========================================
+Source SVG : /Users/johnsmacbook/Desktop/xTool/laser-gcode/evals/assets/star_logo.svg
+G-code     : /Users/johnsmacbook/Desktop/xTool/laser-gcode-workspace/iteration-1/eval-2-svg-fill-engrave/without_skill/outputs/star_logo_engrave.gcode
+
+Artwork
+  - 8-pointed star, 16 polygon vertices
+  - SVG viewBox 100x100, scaled 0.5x -> 50 mm target
+  - Engrave bounding box: X 5.00..49.00 mm, Y 5.00..47.00 mm
+  - Workpiece lower-left of star placed at (5, 5) mm
+
+Machine / Material
+  - Laser: 20W diode
+  - Material: dark/black acrylic (engrave fill, NOT cut-through)
+
+Chosen Parameters
+  - Power (S): 350 / 1000  (~35% of 20W => ~7.0 W effective)
+  - Engrave feed: 2500 mm/min
+  - Travel feed: 6000 mm/min
+  - Hatch spacing: 0.15 mm (horizontal, bidirectional/zig-zag)
+  - Passes: 1
+  - Fill rule: even-odd
+
+Stats
+  - Scan lines: 280
+  - Total engrave length: ~5593 mm
+  - Est. engrave time (engrave moves only): ~134.2 s
+
+Safety Notes (also embedded in G-code header)
+  1. Acrylic vapor is flammable - never leave the machine unattended.
+  2. Keep a fire extinguisher nearby; dark acrylic engraves hot.
+  3. Do a 10x10 mm test patch first to confirm power/speed before the full job.
+  4. Air assist ON to reduce flaming and improve edge quality.
+  5. Keep the protective film on the acrylic during engraving to prevent
+     smoke staining; peel it off after the job.
+  6. Run exhaust/ventilation - acrylic fumes are harmful.
+  7. This is an ENGRAVE job (power intentionally below cut-through).
+     Do not raise power without re-testing to avoid melting/warping.
+
+Usage
+  - Home the machine, set work origin at the lower-left of where you want
+    the star to appear (the G-code places the star 5 mm in from origin).
+  - Focus the laser on the acrylic surface before running.
+  - Run with the lid closed and air assist on.

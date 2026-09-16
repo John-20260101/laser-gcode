@@ -1,0 +1,53 @@
+SUMMARY - Leather laser cutting G-code
+======================================
+
+Output file : circle_40mm_leather.gcode
+Format      : GRBL (laser mode, $32=1 or 2)
+
+MATERIAL
+  2mm veg-tanned leather (植鞣皮革)
+
+MACHINE
+  20W diode laser (455nm blue)
+
+TARGET SHAPE
+  Circle, diameter 40 mm
+  Approximated by a 24-segment polygon (linear G1 moves)
+  Center at X50 Y50 mm, radius 20 mm
+  First vertex at (70, 50) - angle 0 deg
+
+CUTTING PARAMETERS (chosen)
+  Power (S)   : 1000  (100% on the 0-1000 GRBL scale)
+  Feed rate   : 150 mm/min
+  Passes      : 4  (path repeated 4 times)
+  Laser mode  : M3 constant power during G1 moves
+  Travel      : G0 rapid
+
+WHY THESE VALUES
+  - 20W diode lasers are weakly absorbed by leather vs CO2; full power
+    and slow feed are needed to cut through 2mm.
+  - 150 mm/min is a conservative cut speed for 2mm leather on a 20W
+    diode; slower = cleaner cut but more scorch.
+  - 4 passes help ensure a through-cut; leather thickness/finish vary,
+    so test on a scrap piece first.
+
+SAFETY NOTES (also in the .gcode header)
+  1. Wear 455nm-rated laser safety goggles at all times - the beam is
+     near-visible and hazardous to eyes.
+  2. Leather can char and flame - keep a fire extinguisher nearby and
+     never leave the machine unattended.
+  3. Ensure ventilation / exhaust extraction for smoke and fumes.
+  4. Confirm GRBL laser mode is enabled: send $32=1 (or 2) before run.
+  5. Watch the first pass; if edges scorch too much, reduce power to
+     S850 or raise feed to 200 mm/min.
+  6. Verify workpiece fits within machine travel and the beam is
+     focused on the leather surface.
+  7. The G-code starts with M4 S0 (laser off) and ends with M5 / M2.
+
+TUNING TIPS
+  - If it does not cut through: lower feed to 100 mm/min, or add a 5th
+    pass, or raise power (already at max).
+  - If edges are badly burnt: raise feed to 200 mm/min, drop power to
+    S850, or reduce passes to 3.
+  - Air assist is strongly recommended - it reduces charring and helps
+    clear debris from the kerf.

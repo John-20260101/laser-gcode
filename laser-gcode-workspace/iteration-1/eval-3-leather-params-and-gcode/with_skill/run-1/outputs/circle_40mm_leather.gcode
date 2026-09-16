@@ -1,0 +1,40 @@
+; Job: cut | Material: Vegetable-tanned leather 2-3mm (ventilate, test for darkening) | Laser: 20.0W (tier 20W)
+; Power: 90.0% -> S900/1000 | Feed: 800.0 mm/min | Passes: 1
+; Target: 41.667x41.667 mm | Origin(out): bottom-left | Polygons: 1
+; WARNING: starting parameters - always test on scrap first.
+G21
+G90
+G17
+M5
+; --- cut poly1 (S=900, F=800.0, passes=1) ---
+G0 X40.834 Y20.834
+M3 S900
+G1 F800.0
+G1 X40.152 Y15.657
+G1 X38.154 Y10.833
+G1 X34.976 Y6.691
+G1 X30.834 Y3.513
+G1 X26.010 Y1.515
+G1 X20.834 Y0.833
+G1 X15.657 Y1.515
+G1 X10.833 Y3.513
+G1 X6.691 Y6.691
+G1 X3.513 Y10.833
+G1 X1.515 Y15.657
+G1 X0.833 Y20.834
+G1 X1.515 Y26.010
+G1 X3.513 Y30.834
+G1 X6.691 Y34.976
+G1 X10.833 Y38.154
+G1 X15.657 Y40.152
+G1 X20.834 Y40.834
+G1 X26.010 Y40.152
+G1 X30.834 Y38.154
+G1 X34.976 Y34.976
+G1 X38.154 Y30.834
+G1 X40.152 Y26.010
+G1 X40.834 Y20.834
+M5
+M5
+G0 X0 Y0
+M2
