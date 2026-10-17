@@ -1,0 +1,38 @@
+{
+  "expectations": [
+    {
+      "text": "图形按 50mm 换算且落在 100mm 床身内（未被 1000 单位画布放大）",
+      "passed": true,
+      "evidence": "X25.000..75.000 Y25.000..75.000"
+    },
+    {
+      "text": "正方形尺寸约 50x50mm",
+      "passed": true,
+      "evidence": "X25.000..75.000 Y25.000..75.000"
+    },
+    {
+      "text": "生成过程无错误（无 [error]/Traceback，且写出了文件）",
+      "passed": true,
+      "evidence": "file=square_50mm_plywood3_cut.gcode real errors=0"
+    },
+    {
+      "text": "reply.md 说明成品 50mm 且能放进 100x100mm 床身",
+      "passed": true,
+      "evidence": "mentions 50=True 100=True"
+    },
+    {
+      "text": "reply.md 给出切割参数（功率/S、速度、遍数）",
+      "passed": true,
+      "evidence": "params=['1000', '100%']"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 0.0
+  }
+}

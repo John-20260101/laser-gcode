@@ -1,0 +1,66 @@
+### Commands run (in order), with full stderr of generator runs
+
+# 0. inspect inputs (skill doc + assets)
+ls -la /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-snapshot/
+ls -la /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-snapshot/scripts/
+ls -la /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-snapshot/references/
+python3 --version
+mkdir -p /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old/tools
+
+# 1. skill step 2: generate the fill job (run from the SKILL.md directory, as required)
+#    cwd = /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-snapshot
+python3 scripts/generate_gcode.py --svg /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/shared-assets/star_logo.svg --job fill --material acrylic_dark_3mm --laser-w 20 --target-size 50 50 --output /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old/star_logo_fill.gcode
+# stderr:
+#   Wrote /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old/star_logo_fill.gcode (15061 bytes)
+#   [summary] S=350 feed=4000.0 passes=1 polys=1
+
+# 2. optional contour pass, same material/power tier
+python3 scripts/generate_gcode.py --svg /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/shared-assets/star_logo.svg --job engrave --material acrylic_dark_3mm --laser-w 20 --target-size 50 50 --output /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old/star_logo_outline.gcode
+# stderr:
+#   Wrote /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old/star_logo_outline.gcode (738 bytes)
+#   [summary] S=350 feed=4000.0 passes=1 polys=1
+# (no errors; both generator runs exited 0)
+
+# 3. verification: does the fill burn outside the star? (reuses the skill's own loader/transform/scanline)
+#    cwd = /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p2-old
+python3 tools/check_fill.py star_logo_fill.gcode 0.2
+#   star: 16 vertices | bbox 44.00 x 42.00 mm | area 839 mm^2 | hatch spacing 0.2mm
+#   scanline rows = 210  (single-span rows 181, multi-span rows 29)
+#   laser-ON length INSIDE star  =   4195.0 mm   (expected ~area/spacing = 4195 mm)
+#   laser-ON length OUTSIDE star =    389.2 mm   <- burned across the notches
+#      -> 8.5% of all laser-on length is outside the star
+#   connectors: total 58, of which crossing outside the star 56
+#   total laser-ON = 4584.2 mm -> burn time @F4000 = 68.8 s
+
+python3 tools/check_gaps.py star_logo_fill.gcode
+#   star area = 839 mm^2 ; convex hull = 5576 mm^2 ; notch/gap area = 4737 mm^2
+#   rows that burn OUTSIDE the star: 28 of 210
+#   their Y range (output coords): 10.2 .. 38.8 mm
+#   total outside burn = 389.2 mm; longest single crossing = 13.1 mm
+#   burn density inside star = 5.00 mm/mm^2 (= 1/0.2 spacing)
+#   burn density in the gaps = 0.08 mm/mm^2 -> 2% of the star's density
+#   per-row outside burn: Y=10.2..12.8 (14 rows, 26.1mm down to 1.9mm) and Y=36.2..38.8 (14 rows, 1.8mm up to 25.8mm)
+
+# 4. fix: rewrite the 58 span-to-span connectors as laser-OFF travel (M5 + G0 + M3)
+python3 tools/retract_travel.py star_logo_fill.gcode star_logo_fill_no_cross.gcode
+#   wrote .../star_logo_fill_no_cross.gcode (15699 bytes), converted 58 connectors to laser-off travel
+
+# 5. verify the fix
+python3 tools/check_fill.py star_logo_fill_no_cross.gcode 0.2
+#   laser-ON length INSIDE star  =   4195.0 mm
+#   laser-ON length OUTSIDE star =      0.0 mm   <- burned across the notches
+#   total laser-ON = 4195.0 mm -> burn time @F4000 = 62.9 s
+
+# 6. visual proof + runtime estimate
+python3 tools/preview.py
+#   star_logo_fill.gcode: burn 4584mm, laser-off travel 144mm, outside-burn 389.2mm, est time 72s
+#   star_logo_fill_no_cross.gcode: burn 4195mm, laser-off travel 533mm, outside-burn 0.0mm, est time 74s
+#   wrote preview_gap_check.svg
+
+# 7. integrity checks of the written artifacts
+cat star_logo_outline.gcode
+python3 -c "<count red/blue lines + polygons in preview_gap_check.svg>"
+#   red (laser-on across gaps) = 58 lines, blue = 536, polygons = 2, titles = 2
+grep -c '^M5$' star_logo_fill_no_cross.gcode   # 270
+grep -c '^M3 S350$' star_logo_fill_no_cross.gcode  # 268
+ls -la *.gcode *.svg

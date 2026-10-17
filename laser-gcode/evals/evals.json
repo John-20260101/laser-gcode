@@ -6,21 +6,165 @@
       "name": "maple-leaf-cut",
       "prompt": "我有一张枫叶的轮廓图，从顶部尖角顺时针的顶点坐标如下（归一化到 0-100 网格，原点在左上角）：50,2 57,18 71,16 62,35 98,43 78,62 93,68 65,75 68,85 53,80 53,98 47,98 47,80 32,85 35,75 7,68 22,62 2,43 38,35 29,16 43,18 50,2。我想用我的 10W 二极管激光在 3mm 椴木板上把它切出来，大概 80mm 见方就行。帮我生成可以直接上机的 G 代码，并告诉我该用多少功率和速度。",
       "expected_output": "生成一个 .gcode 文件，使用 scripts/generate_gcode.py，job=cut，material=plywood_3mm，laser-w=10，target-size 80 80。参数摘要应反映材料库 10W 档：S1000、feed≈500、passes=2。G 代码应包含 G21/G90/M3 S1000/G1 F500/沿 22 个顶点闭合/M5/M2，且 Y 轴已翻转（顶部尖角在 Y≈78 而非 Y≈2）。应附安全提示。",
-      "files": []
+      "files": [],
+      "expectations": [
+        "退出码为 0 并写出 .gcode 文件",
+        "摘要显示 S=1000、feed=500、passes=2（材料库 10W 档，100% 功率）",
+        "G 代码含 G21、G90、M3 S1000、G1 F500、M5、M2",
+        "顶部尖角被翻转：燃烧刀路的 Y 最大值 > 78（叶尖朝上），且整条刀路落在 0-80mm 内",
+        "不存在激光开启状态下的 G0 快速移动",
+        "不存在零长度的闭合移动（重复首点会被自动去掉）"
+      ]
     },
     {
       "id": 2,
       "name": "svg-fill-engrave",
       "prompt": "我做了个星星 logo 的 SVG 文件，路径在 evals/assets/star_logo.svg（相对 skill 目录）。我想在深色亚克力上雕刻填充这个 logo（不是切穿，是把内部填满），机器是 20W 的，最终尺寸 50mm 见方。帮我生成 G 代码和参数。",
-      "expected_output": "使用 --svg 与 --job fill，material=acrylic_dark_3mm，laser-w=20，target-size 50 50。复用 engrave 档参数（20W 亚克力 engrave：power≈35、feed≈4000）。G 代码含 hatch 扫描线、boustrophedon、M3 S350 左右。应说明填充是雕刻、间距含义，并提示亚克力需通风、二极管不能切透明亚克力。",
-      "files": ["evals/assets/star_logo.svg"]
+      "expected_output": "使用 --svg 与 --job fill，material=acrylic_dark_3mm，laser-w=20，target-size 50 50。复用 engrave 档参数（20W 亚克力 engrave：power≈35、feed≈4000）。G 代码含 hatch 扫描线、boustrophedon、M3 S350 左右，且每条扫描线的每一段之间都先关光再快速移动。应说明填充是雕刻、间距含义，并提示亚克力需通风、二极管不能切透明亚克力。",
+      "files": ["evals/assets/star_logo.svg"],
+      "expectations": [
+        "退出码为 0，job=fill，S=350 左右（20W 亚克力 engrave 档 35%）",
+        "G 代码含 hatch fill 注释与牛耕式扫描线，span 数量 > 100",
+        "凹形星形的同一条扫描线上，多段之间不存在激光开启的移动（不烧穿镂空间隙）",
+        "刀路包围盒落在 0-50mm 目标范围内"
+      ]
     },
     {
       "id": 3,
       "name": "leather-params-and-gcode",
       "prompt": "我想在 2mm 植鞣皮革上切一些小挂件形状，机器是 20W 二极管激光。我不太确定该用多少功率和速度，能帮我定个参数并生成 G 代码吗？形状是一个简单的圆，直径 40mm，你可以用顶点近似一个圆（比如 24 段）。",
       "expected_output": "应选用 material=leather_2mm、laser-w=20，给出 20W 档切割参数（power≈90、feed≈800、passes=1，S≈900）。应自行生成圆的 24 段顶点（归一化 0-100，圆心 50,50，半径约 48），用脚本生成 cut G 代码，target-size 40 40。应提示皮革需通风、测试是否变黑。",
-      "files": []
+      "files": [],
+      "expectations": [
+        "退出码为 0，material=leather_2mm、laser-w=20 档",
+        "摘要显示 S=900、feed=800、passes=1",
+        "刀路直径约 40mm（包围盒落在 0-40mm 内）且首尾闭合",
+        "不存在激光开启状态下的 G0 快速移动"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "svg-viewbox-1000-regression",
+      "prompt": "我从 Illustrator 导出的 SVG 画布是 1000x1000，里面就是一个正方形。我的机器床身很娇气，只想切一个 50mm 的正方形。文件在 evals/assets/viewbox_1000.svg。帮我生成 G 代码。",
+      "expected_output": "脚本必须从 SVG 的 viewBox 得到源坐标系（0 0 1000 1000），把正方形映射到 50mm 目标尺寸，而不是把用户单位当作 0-100 网格。刀路坐标应落在 0-50mm 内。旧版本会输出 500mm 的坐标（超出床身 10 倍）。",
+      "files": ["evals/assets/viewbox_1000.svg"],
+      "expectations": [
+        "退出码为 0",
+        "刀路包围盒落在 0-50mm 目标范围内（旧版本会生成 X≈500）",
+        "摘要中的 bbox 显示尺寸约 50x50mm",
+        "不出现「刀路超出目标矩形」告警"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "concave-fill-no-gap-burn",
+      "prompt": "用 evals/assets/star_logo.svg 这个五角星做填充雕刻，10W 机器，纸板，40mm 见方。为了快一点用 1mm 线距，帮我生成 G 代码。",
+      "expected_output": "填充必须逐段关光：同一条扫描线上两个分离的燃烧段之间要用 M5 → G0 → M3 S 重新起步，不能带着激光横穿五角星内部的镂空。旧版本会在同一条扫描线上连续输出 G1，把两个星角之间的空隙整条烧黑。",
+      "files": ["evals/assets/star_logo.svg"],
+      "expectations": [
+        "退出码为 0",
+        "整份 G 代码不存在激光开启状态下的 G0 快速移动",
+        "每个燃烧段之前都有 M3/M4 出光指令（不存在无出光的 G1 切割）",
+        "凹形轮廓的多段扫描线都被正确分段（燃烧段数量明显多于扫描线行数中的单段情形）"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "hatch-spacing-zero-rejected",
+      "prompt": "帮我把一个 100x100 的正方形（顶点 0,0 100,0 100,100 0,100）填充雕刻，线距我想设成 0，看看能不能做到最密。",
+      "expected_output": "脚本必须以清晰错误信息拒绝 spacing<=0，并在瞬间返回非零退出码。旧版本会在 while 循环里无限循环（间距永远加不上去），既不报错也不结束。",
+      "files": [],
+      "expectations": [
+        "退出码非 0",
+        "stderr 含 [error] 且提到 hatch-spacing",
+        "2 秒内返回，不挂死",
+        "不生成任何 G 代码文件"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "json-two-vertices-rejected",
+      "prompt": "我的图形顶点是 [[0,0],[10,10]]，帮我生成切割 G 代码。",
+      "expected_output": "两个顶点无法构成封闭图形，脚本必须报错提示至少需要 3 个顶点。旧版本对 JSON 数组输入会跳过顶点数量校验，直接输出一条只有两个点的「多边形」（退出码 0）。",
+      "files": [],
+      "expectations": [
+        "退出码非 0",
+        "stderr 含 [error] 并说明至少需要 3 个顶点",
+        "不生成任何 G 代码文件"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "svg-arc-flattened",
+      "prompt": "evals/assets/arc_shape.svg 里那个带圆弧的图形，我要用 10W 机器在 3mm 椴木上切出来，100mm 见方。",
+      "expected_output": "SVG 路径里的 A（椭圆弧）命令必须被正确展开为多段折线，右侧圆弧应向外鼓出。旧版本遇到不认识的命令会直接 break 出解析循环，把图形截断后草草闭合，切出一个形状完全不对的三角形。",
+      "files": ["evals/assets/arc_shape.svg"],
+      "expectations": [
+        "退出码为 0",
+        "圆弧被展开：刀路 X 最大值 > 88（截断版本最多到 50）",
+        "路径被离散成足够多的点（燃烧移动数 ≥ 8）",
+        "不存在激光开启状态下的 G0 快速移动"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "open-polyline-stays-open",
+      "prompt": "evals/assets/open_polyline.svg 是一条不闭合的折线，我要用雕刻的方式按原样描出来，不要给我闭合。",
+      "expected_output": "开放路径只输出两段雕刻移动，不回到起点；显式加 --close yes 时才闭合。旧版本会无条件闭合开放折线，多烧一条从终点回到起点的线。",
+      "files": ["evals/assets/open_polyline.svg"],
+      "expectations": [
+        "默认（auto）时燃烧移动恰好 2 段，末点不等于首点",
+        "加 --close yes 后燃烧移动变为 3 段（显式闭合）",
+        "cut 模式下使用开放路径会给出告警提示"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "tier-range-warnings",
+      "prompt": "我的机器是 60W 二极管激光，切 3mm 椴木板。另外我还有一台 5W 的小机器要切 3mm MDF，两个都给我算一下参数。",
+      "expected_output": "60W 超出材料库最高档（40W）时必须告警说明实际光功率会高于表格意图；5W 低于最低档（10W）时也必须告警提示需要更多遍数。旧版本会静默钳制到最近档位，用户完全不知道参数已经偏离意图。",
+      "files": [],
+      "expectations": [
+        "60W 时 stderr 出现 [warn] 并提到高于最高档",
+        "5W 时 stderr 出现 [warn] 并提到低于最低档",
+        "两种情况依然产出可用的 G 代码（退出码 0）"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "aspect-ratio-warning-and-contain",
+      "prompt": "把 evals/assets/viewbox_1000.svg 这个正方形切成 100x50mm 的尺寸，我的机器床身就是 100x50。",
+      "expected_output": "目标宽高比与图形不一致时（stretch 会独立缩放 X/Y，圆会变椭圆）必须告警；--fit contain 时应等比缩放且不再告警。旧版本会静默把正方形拉成长方形。",
+      "files": ["evals/assets/viewbox_1000.svg"],
+      "expectations": [
+        "默认 --fit stretch 时出现宽高比告警",
+        "加 --fit contain 后不再出现宽高比告警，且刀路等比缩放",
+        "两种情况退出码都为 0"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "offset-applied-after-y-flip",
+      "prompt": "我想让工件从原点往上偏移 10mm 再雕刻一个 100x100 的正方形轮廓，用 --offset 0 10。",
+      "expected_output": "offset 必须在 Y 翻转之后施加，即正 Y 偏移把图形向上推。旧版本先加 offset 再翻转，导致正偏移把图形往下推，并且会算出负的 Y 坐标（Y=-10），可能撞到机床限位。",
+      "files": [],
+      "expectations": [
+        "刀路 Y 最小值 ≥ 9.9（向上偏移 10mm）",
+        "刀路中不出现负坐标",
+        "退出码为 0 且无「负坐标」告警"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "circle-and-transform-support",
+      "prompt": "evals/assets/circle_transform.svg 是我从 Figma 导出的，里面是一个带 transform 的分组里放了一个圆形。我要切出来，100mm 见方。",
+      "expected_output": "必须支持 <circle> 元素以及 <g transform> 的 translate/scale/matrix/rotate/skew；圆心 (50,50) 半径 40 经过 scale(0.5)+translate(20,20) 后应为圆心 (45,45) 半径 20，在 0-100 输出坐标系（原点左下、Y 已翻转）中即包围盒 X25..65 Y35..75。旧版本既不认 <circle>（直接报 no usable shapes），也完全忽略 transform。",
+      "files": ["evals/assets/circle_transform.svg"],
+      "expectations": [
+        "退出码为 0（旧版本报 no usable shapes found）",
+        "刀路包围盒约为 X25..65 Y35..75（transform 被正确应用）",
+        "圆被展开为足够多的点（燃烧移动数 ≥ 16）"
+      ]
     }
   ]
 }

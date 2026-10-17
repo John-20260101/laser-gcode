@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Derived from shared-assets/viewbox_1000.svg.
+     Original user space: 1000 units (viewBox 0 0 1000 1000), square rect 0,0 1000x1000.
+     generate_gcode.py ignores the viewBox and treats SVG user units as the skill's
+     normalized 0-100 grid, so the input is rescaled by 1000/100 = 10 here.
+     Result: this square is 100 units wide = the full 50x50 mm target on the machine. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <rect x="0" y="0" width="100" height="100" fill="none" stroke="#000" stroke-width="0.2"/>
+</svg>

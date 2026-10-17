@@ -1,0 +1,38 @@
+{
+  "expectations": [
+    {
+      "text": "用床身尺寸做了校验（--bed 或等价的边界核对）",
+      "passed": true,
+      "evidence": "commands --bed=True, reply compares 40/60=True"
+    },
+    {
+      "text": "明确报告刀路超床身（60mm 图形 vs 40x40 床身）",
+      "passed": true,
+      "evidence": "verdict=['放不下', '不行']"
+    },
+    {
+      "text": "仍按要求生成了 60mm 的切割 G 代码",
+      "passed": true,
+      "evidence": "star_60mm_fit_cut.gcode X0.000..60.000 Y1.469..58.531"
+    },
+    {
+      "text": "给出 20W 切 3mm 椴木的参数（S900 / 1000mm·min / 1 遍）",
+      "passed": true,
+      "evidence": "mentions S900=True feed1000=True"
+    },
+    {
+      "text": "附安全提示（测试或气泵或通风）",
+      "passed": true,
+      "evidence": "safety=['测试', '废料', '气泵', '通风', '安全']"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 0.0
+  }
+}

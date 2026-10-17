@@ -1,0 +1,38 @@
+{
+  "expectations": [
+    {
+      "text": "生成了 .gcode 文件，且 10W 档切割参数为 S1000 / F500",
+      "passed": true,
+      "evidence": "maple_leaf_cut.gcode S1000/F500 present"
+    },
+    {
+      "text": "采用 2 遍切割（10W 切 3mm 椴木）",
+      "passed": true,
+      "evidence": "commands.txt passes match: ['passes=2']"
+    },
+    {
+      "text": "刀路落在 0-80mm 内且 Y 已翻转（叶尖朝上，Ymax > 78）",
+      "passed": true,
+      "evidence": "X1.600..78.400 Y1.600..78.400"
+    },
+    {
+      "text": "不存在激光开启时的快速移动，也没有零长度切割移动",
+      "passed": false,
+      "evidence": "laser-on rapids=0, zero-length=2 zero-length burn move(s)"
+    },
+    {
+      "text": "reply.md 给出了功率/速度/遍数并附安全提示（测试或气泵或通风）",
+      "passed": true,
+      "evidence": "params=['1000', '100%'] safety=['测试', '废料', '气泵', '通风', '安全']"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "total_duration_seconds": 0.0
+  }
+}

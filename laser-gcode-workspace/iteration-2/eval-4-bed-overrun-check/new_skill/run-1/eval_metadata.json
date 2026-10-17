@@ -1,0 +1,6 @@
+{
+  "eval_id": 4,
+  "eval_name": "bed-overrun-check",
+  "prompt": "60mm 五角星切在 40x40mm 床身上（要求确认不超床身）",
+  "config": "new_skill"
+}

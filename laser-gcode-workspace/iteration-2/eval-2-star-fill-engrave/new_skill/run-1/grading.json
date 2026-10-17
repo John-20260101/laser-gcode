@@ -1,0 +1,38 @@
+{
+  "expectations": [
+    {
+      "text": "生成了填充（fill）G 代码，20W 亚克力档 35% -> M3 S350",
+      "passed": true,
+      "evidence": "star_fill_acrylic_20w.gcode S350=True job=True"
+    },
+    {
+      "text": "填充逐段走位：每个燃烧段都由独立出光指令开始（无带光横穿的连接线），且无激光开启时的快速移动",
+      "passed": true,
+      "evidence": "arms=614 spans=614 rows=486 laser-on-rapids=0"
+    },
+    {
+      "text": "正面回答了「空隙会不会被烧黑」：说明每段之间会关光/重新出光",
+      "passed": true,
+      "evidence": "matched=['关光', 'M5', '横穿']"
+    },
+    {
+      "text": "给出亚克力安全提示：通风排烟 + 二极管不能切透明亚克力",
+      "passed": true,
+      "evidence": "vent=['通风', '排烟'] clear_acrylic=True"
+    },
+    {
+      "text": "说明了填充参数（线距/间距或耗时）",
+      "passed": true,
+      "evidence": "matched=['线距', 'hatch', '扫描线']"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 0.0
+  }
+}

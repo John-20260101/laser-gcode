@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A <circle> inside a transformed <g>: both are common in Figma/Illustrator exports and
+     both were unsupported (the circle errored out, the transform was silently ignored).
+     Circle centre (50,50) r=40, then scale(0.5) + translate(20,20) -> centre (45,45) r=20. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <g transform="translate(20,20) scale(0.5)">
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-width="0.5"/>
+  </g>
+</svg>

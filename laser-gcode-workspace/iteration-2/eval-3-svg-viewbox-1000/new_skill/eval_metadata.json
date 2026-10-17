@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "svg-viewbox-1000",
+  "prompt": "1000 单位 viewBox 的 SVG 切 50mm 正方形（100mm 床身）",
+  "config": "new_skill"
+}

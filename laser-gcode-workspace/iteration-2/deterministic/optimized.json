@@ -1,0 +1,326 @@
+{
+  "skill_dir": "/Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new",
+  "passed": 48,
+  "total": 48,
+  "pass_rate": 1.0,
+  "results": [
+    {
+      "eval_id": 1,
+      "eval_name": "maple-leaf-cut",
+      "outcomes": [
+        {
+          "text": "退出码为 0 并写出 .gcode 文件",
+          "passed": true,
+          "evidence": "exit=0 file=True"
+        },
+        {
+          "text": "摘要显示 S=1000、feed=500、passes=2（材料库 10W 档，100% 功率）",
+          "passed": true,
+          "evidence": "summary={'S': '1000', 'feed': '500', 'passes': '2', 'polys': '1', 'spans': '0', 'bbox': 'X1.600..78.400 Y1.600..78.400 (76.80 x 76.80 mm)', 'burn': '670.0mm', 'est': '1.4min'}"
+        },
+        {
+          "text": "G 代码含 G21、G90、M3 S1000、G1 F500、M5、M2",
+          "passed": true,
+          "evidence": "all present"
+        },
+        {
+          "text": "顶部尖角被翻转：燃烧刀路的 Y 最大值 > 78（叶尖朝上），且整条刀路落在 0-80mm 内",
+          "passed": true,
+          "evidence": "X1.600..78.400 Y1.600..78.400"
+        },
+        {
+          "text": "不存在激光开启状态下的 G0 快速移动",
+          "passed": true,
+          "evidence": "clean"
+        },
+        {
+          "text": "不存在零长度的闭合移动（重复首点会被自动去掉）",
+          "passed": true,
+          "evidence": "0 zero-length burn move(s)"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "svg-fill-engrave",
+      "outcomes": [
+        {
+          "text": "退出码为 0，job=fill，S=350 左右（20W 亚克力 engrave 档 35%）",
+          "passed": true,
+          "evidence": "exit=0 summary={'S': '350', 'feed': '4000', 'passes': '1', 'polys': '1', 'spans': '267', 'bbox': 'X3.000..47.000 Y4.200..45.800 (44.00 x 41.60 mm)', 'burn': '4195.0mm', 'est': '1.2min'}"
+        },
+        {
+          "text": "G 代码含 hatch fill 注释与牛耕式扫描线，span 数量 > 100",
+          "passed": true,
+          "evidence": "spans=267"
+        },
+        {
+          "text": "凹形星形的同一条扫描线上，多段之间不存在激光开启的移动（不烧穿镂空间隙）",
+          "passed": true,
+          "evidence": "clean"
+        },
+        {
+          "text": "刀路包围盒落在 0-50mm 目标范围内",
+          "passed": true,
+          "evidence": "X3.000..46.450 Y4.200..45.800"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "leather-params-and-gcode",
+      "outcomes": [
+        {
+          "text": "退出码为 0，material=leather_2mm、laser-w=20 档",
+          "passed": true,
+          "evidence": "exit=0 header=['; Job: cut | Material: Vegetable-tanned leather 2-3mm (ventilate, test for darkening) | Laser: 20W (tier 20W)']"
+        },
+        {
+          "text": "摘要显示 S=900、feed=800、passes=1",
+          "passed": true,
+          "evidence": "summary={'S': '900', 'feed': '800', 'passes': '1', 'polys': '1', 'spans': '0', 'bbox': 'X0.800..39.200 Y0.800..39.200 (38.40 x 38.40 mm)', 'burn': '120.3mm', 'est': '0.2min'}"
+        },
+        {
+          "text": "刀路直径约 40mm（包围盒落在 0-40mm 内）且首尾闭合",
+          "passed": true,
+          "evidence": "X0.800..39.200 Y0.800..39.200 closed=loop start (39.2, 20.0) end (39.2, 20.0) (gap 0.000)"
+        },
+        {
+          "text": "不存在激光开启状态下的 G0 快速移动",
+          "passed": true,
+          "evidence": "clean"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "svg-viewbox-1000-regression",
+      "outcomes": [
+        {
+          "text": "退出码为 0",
+          "passed": true,
+          "evidence": "exit=0 timeout=False"
+        },
+        {
+          "text": "刀路包围盒落在 0-50mm 目标范围内（旧版本会生成 X≈500）",
+          "passed": true,
+          "evidence": "X0.000..50.000 Y0.000..50.000"
+        },
+        {
+          "text": "摘要中的 bbox 显示尺寸约 50x50mm",
+          "passed": true,
+          "evidence": "w=50.00 h=50.00 (want 50.0)"
+        },
+        {
+          "text": "不出现「刀路超出目标矩形」告警",
+          "passed": true,
+          "evidence": "none present"
+        }
+      ]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "concave-fill-no-gap-burn",
+      "outcomes": [
+        {
+          "text": "退出码为 0",
+          "passed": true,
+          "evidence": "exit=0 timeout=False"
+        },
+        {
+          "text": "整份 G 代码不存在激光开启状态下的 G0 快速移动",
+          "passed": true,
+          "evidence": "clean"
+        },
+        {
+          "text": "每个燃烧段之前都有 M3/M4 出光指令（不存在无出光的 G1 切割）",
+          "passed": true,
+          "evidence": "every burn is armed"
+        },
+        {
+          "text": "凹形轮廓的多段扫描线都被正确分段（燃烧段数量明显多于扫描线行数中的单段情形）",
+          "passed": true,
+          "evidence": "arms=43 rows=33 spans=43"
+        }
+      ]
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "hatch-spacing-zero-rejected",
+      "outcomes": [
+        {
+          "text": "退出码非 0",
+          "passed": true,
+          "evidence": "exit=2"
+        },
+        {
+          "text": "stderr 含 [error] 且提到 hatch-spacing",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "2 秒内返回，不挂死",
+          "passed": true,
+          "evidence": "0.03s (limit 2.0s)"
+        },
+        {
+          "text": "不生成任何 G 代码文件",
+          "passed": true,
+          "evidence": "no file written"
+        }
+      ]
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "json-two-vertices-rejected",
+      "outcomes": [
+        {
+          "text": "退出码非 0",
+          "passed": true,
+          "evidence": "exit=2"
+        },
+        {
+          "text": "stderr 含 [error] 并说明至少需要 3 个顶点",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "不生成任何 G 代码文件",
+          "passed": true,
+          "evidence": "no file written"
+        }
+      ]
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "svg-arc-flattened",
+      "outcomes": [
+        {
+          "text": "退出码为 0",
+          "passed": true,
+          "evidence": "exit=0 timeout=False"
+        },
+        {
+          "text": "圆弧被展开：刀路 X 最大值 > 88（截断版本最多到 50）",
+          "passed": true,
+          "evidence": "X10.000..92.925 Y10.000..90.000"
+        },
+        {
+          "text": "路径被离散成足够多的点（燃烧移动数 ≥ 8）",
+          "passed": true,
+          "evidence": "136 burn moves"
+        },
+        {
+          "text": "不存在激光开启状态下的 G0 快速移动",
+          "passed": true,
+          "evidence": "clean"
+        }
+      ]
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "open-polyline-stays-open",
+      "outcomes": [
+        {
+          "text": "默认（auto）时燃烧移动恰好 2 段，末点不等于首点",
+          "passed": true,
+          "evidence": "2 burn moves; start (10.0, 90.0) end (50.0, 50.0) (gap 56.569)"
+        },
+        {
+          "text": "加 --close yes 后燃烧移动变为 3 段（显式闭合）",
+          "passed": true,
+          "evidence": "3 burn moves"
+        },
+        {
+          "text": "cut 模式下使用开放路径会给出告警提示",
+          "passed": true,
+          "evidence": "ok"
+        }
+      ]
+    },
+    {
+      "eval_id": 10,
+      "eval_name": "tier-range-warnings",
+      "outcomes": [
+        {
+          "text": "60W 时 stderr 出现 [warn] 并提到高于最高档",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "5W 时 stderr 出现 [warn] 并提到低于最低档",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "两种情况依然产出可用的 G 代码（退出码 0）",
+          "passed": true,
+          "evidence": "high=0 low=0"
+        }
+      ]
+    },
+    {
+      "eval_id": 11,
+      "eval_name": "aspect-ratio-warning-and-contain",
+      "outcomes": [
+        {
+          "text": "默认 --fit stretch 时出现宽高比告警",
+          "passed": true,
+          "evidence": "ok"
+        },
+        {
+          "text": "加 --fit contain 后不再出现宽高比告警，且刀路等比缩放",
+          "passed": true,
+          "evidence": "none present; w=50.000 h=50.000"
+        },
+        {
+          "text": "两种情况退出码都为 0",
+          "passed": true,
+          "evidence": "stretch=0 contain=0"
+        }
+      ]
+    },
+    {
+      "eval_id": 12,
+      "eval_name": "offset-applied-after-y-flip",
+      "outcomes": [
+        {
+          "text": "刀路 Y 最小值 ≥ 9.9（向上偏移 10mm）",
+          "passed": true,
+          "evidence": "X0.000..100.000 Y10.000..110.000"
+        },
+        {
+          "text": "刀路中不出现负坐标",
+          "passed": true,
+          "evidence": "all >= 0"
+        },
+        {
+          "text": "退出码为 0 且无「负坐标」告警",
+          "passed": true,
+          "evidence": "exit=0 warns=[]"
+        }
+      ]
+    },
+    {
+      "eval_id": 13,
+      "eval_name": "circle-and-transform-support",
+      "outcomes": [
+        {
+          "text": "退出码为 0（旧版本报 no usable shapes found）",
+          "passed": true,
+          "evidence": "exit=0 timeout=False"
+        },
+        {
+          "text": "刀路包围盒约为 X25..65 Y35..75（transform 被正确应用）",
+          "passed": true,
+          "evidence": "X25.000..65.000 Y35.000..75.000 vs (25.0, 35.0, 65.0, 75.0) (max delta 0.000)"
+        },
+        {
+          "text": "圆被展开为足够多的点（燃烧移动数 ≥ 16）",
+          "passed": true,
+          "evidence": "256 burn moves"
+        }
+      ]
+    }
+  ]
+}

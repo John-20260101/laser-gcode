@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- An arc that a naive path parser silently truncates: dropping the A command would
+     close the shape from (50,50) straight back to (10,10) and cut the wrong part. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M10 10 L50 10 L50 50 A30 30 0 0 1 90 90 L10 90 Z" fill="none" stroke="#000" stroke-width="0.5"/>
+</svg>

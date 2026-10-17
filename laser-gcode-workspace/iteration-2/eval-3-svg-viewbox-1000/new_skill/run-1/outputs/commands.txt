@@ -1,0 +1,55 @@
+# 1) list material keys / tiers (skill workflow: 材料参数库)
+cd /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new && python3 scripts/generate_gcode.py --list-materials
+
+# 2) pre-flight parameter + geometry report (skill 第 2 步自检 / 第 2 节 --check)
+cd /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new && python3 scripts/generate_gcode.py --svg /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/shared-assets/viewbox_1000.svg --job cut --material plywood_3mm --laser-w 10 --target-size 50 50 --bed 100 100 --check
+
+# 3) generate the real G-code, centered on the 100x100 bed (--offset 25 25)
+cd /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new && python3 scripts/generate_gcode.py --svg /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/shared-assets/viewbox_1000.svg --job cut --material plywood_3mm --laser-w 10 --target-size 50 50 --bed 100 100 --offset 25 25 --output /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p3-new/square_50mm_plywood3_cut.gcode
+
+# 4) inspect references used for the reply (materials.json plywood_3mm block, safety.md)
+cd /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new && python3 -c "import json;d=json.load(open('references/materials.json'));print(json.dumps(d.get('plywood_3mm'),ensure_ascii=False,indent=1))"
+cd /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/skill-new && sed -n '1,80p' references/safety.md
+
+# ============================================================
+# FULL STDERR OF THE GENERATOR RUNS
+# ============================================================
+
+# --- run: --list-materials ---
+# (stdout only, no [warn]/[error]; exit code 0)
+# acrylic_dark_3mm     Dark/cast acrylic 3mm (diodes cannot cut clear acrylic) tiers=5,10,20,40       cut=yes engrave=yes
+# anodized_aluminum    Anodized aluminum (marking only, removes anodize layer) tiers=10,20,40         cut=no  engrave=yes
+# bamboo_3mm           Bamboo plywood 3mm (chars fast, air assist strongly advised) tiers=5,10,20,40       cut=yes engrave=yes
+# canvas_cotton        Cotton canvas / natural fabric (blends melt, PVC is toxic) tiers=5,10,20,40       cut=yes engrave=yes
+# cardboard_2mm        Cardboard / corrugated 2mm                           tiers=5,10,20,40       cut=yes engrave=yes
+# felt_3mm             Wool / polyester felt 3mm (synthetic felt melts; ventilate) tiers=5,10,20,40       cut=yes engrave=yes
+# hardwood             Hardwood (maple/oak/walnut)                          tiers=5,10,20,40       cut=yes engrave=yes
+# leather_2mm          Vegetable-tanned leather 2-3mm (ventilate, test for darkening) tiers=5,10,20,40       cut=yes engrave=yes
+# mdf_3mm              MDF 3mm (chars easily, use air assist)               tiers=10,20,40         cut=yes engrave=yes
+# paper                Paper / cardstock                                    tiers=5,10,20,40       cut=yes engrave=yes
+# plywood_3mm          Plywood / Basswood 3mm                               tiers=5,10,20,40       cut=yes engrave=yes
+# plywood_6mm          Plywood 6mm                                          tiers=10,20,40         cut=yes engrave=yes
+# slate_3mm            Slate / stone tile (engrave only - diodes cannot cut stone) tiers=5,10,20,40       cut=no  engrave=yes
+# (no stderr output)
+
+# --- run: --check (no file written) ---
+# STDERR:
+# [summary] S=1000 feed=500 passes=2 polys=1 spans=0 bbox="X0.000..50.000 Y0.000..50.000 (50.00 x 50.00 mm)" burn=400.0mm est=0.8min
+# material      : plywood_3mm (Plywood / Basswood 3mm)
+# laser         : 10W -> tier 10W, using the 'cut' block
+# power         : 100% -> S1000 of $30=1000 (10.00 W optical at 10W rated)
+# feed / passes : 500 mm/min / 2
+# job           : cut (M3 constant)
+# target size   : 50 x 50 mm, fit=stretch
+# frame         : 0.0000, 0.0000  1000 x 1000 (SVG viewBox)
+# paths         : 1 (1 closed)
+# bbox          : X0.000..50.000 Y0.000..50.000 (50.00 x 50.00 mm)
+# burn / travel : 400.0 mm / 50.0 mm
+# estimated time: 0.8 min (feed 500 mm/min, rapid 3000 mm/min)
+# NO [warn] lines. NO [error] lines. exit code 0.
+
+# --- run: generate (final artifact) ---
+# STDERR:
+# Wrote /Users/johnsmacbook/Desktop/Program/deepseek/laser-gcode-workspace/ab/out/p3-new/square_50mm_plywood3_cut.gcode (654 bytes)
+# [summary] S=1000 feed=500 passes=2 polys=1 spans=0 bbox="X25.000..75.000 Y25.000..75.000 (50.00 x 50.00 mm)" burn=400.0mm est=0.8min
+# NO [warn] lines. NO [error] lines. exit code 0.

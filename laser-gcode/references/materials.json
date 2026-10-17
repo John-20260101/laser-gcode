@@ -1,5 +1,6 @@
 {
-  "_note": "Starting points for diode lasers. S = power_percent/100 * grbl_max_s. Always test on scrap first. tiers keyed by optical wattage.",
+  "_note": "Starting points for diode lasers. S = power_percent/100 * grbl_max_s. Always test on scrap first. tiers are keyed by optical wattage. A tier may add an optional 'fill' block; when it is absent, fill reuses the 'engrave' block. cut.passes = 0 means the material cannot be cut.",
+  "_how_tiers_work": "The script picks the lowest tier >= --laser-w, or the highest tier when --laser-w is above every tier, and prints a warning in that case. Every entry here is a starting point measured by nobody in particular: batch, focus, lens, air assist and speed all move the real number, so run a test grid before trusting it.",
   "plywood_3mm": {
     "name": "Plywood / Basswood 3mm",
     "tiers": {
@@ -76,6 +77,42 @@
       "10": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 90, "feed": 3000, "passes": 2}},
       "20": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 80, "feed": 3000, "passes": 2}},
       "40": {"cut": {"power": 0, "feed": 0, "passes": 0}, "engrave": {"power": 70, "feed": 4000, "passes": 1}}
+    }
+  },
+  "bamboo_3mm": {
+    "name": "Bamboo plywood 3mm (chars fast, air assist strongly advised)",
+    "tiers": {
+      "5":  {"cut": {"power": 100, "feed": 250, "passes": 4}, "engrave": {"power": 60, "feed": 2500, "passes": 1}},
+      "10": {"cut": {"power": 100, "feed": 450, "passes": 3}, "engrave": {"power": 45, "feed": 4500, "passes": 1}},
+      "20": {"cut": {"power": 95,  "feed": 900, "passes": 2}, "engrave": {"power": 32, "feed": 5500, "passes": 1}},
+      "40": {"cut": {"power": 80,  "feed": 1300, "passes": 1}, "engrave": {"power": 22, "feed": 7500, "passes": 1}}
+    }
+  },
+  "canvas_cotton": {
+    "name": "Cotton canvas / natural fabric (blends melt, PVC is toxic)",
+    "tiers": {
+      "5":  {"cut": {"power": 70, "feed": 600, "passes": 2}, "engrave": {"power": 25, "feed": 3000, "passes": 1}},
+      "10": {"cut": {"power": 50, "feed": 1000, "passes": 1}, "engrave": {"power": 18, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 38, "feed": 1800, "passes": 1}, "engrave": {"power": 12, "feed": 7000, "passes": 1}},
+      "40": {"cut": {"power": 28, "feed": 2800, "passes": 1}, "engrave": {"power": 8,  "feed": 9000, "passes": 1}}
+    }
+  },
+  "felt_3mm": {
+    "name": "Wool / polyester felt 3mm (synthetic felt melts; ventilate)",
+    "tiers": {
+      "5":  {"cut": {"power": 85, "feed": 500, "passes": 3}, "engrave": {"power": 35, "feed": 3000, "passes": 1}},
+      "10": {"cut": {"power": 65, "feed": 900, "passes": 2}, "engrave": {"power": 25, "feed": 5000, "passes": 1}},
+      "20": {"cut": {"power": 50, "feed": 1500, "passes": 1}, "engrave": {"power": 18, "feed": 6500, "passes": 1}},
+      "40": {"cut": {"power": 35, "feed": 2400, "passes": 1}, "engrave": {"power": 12, "feed": 8500, "passes": 1}}
+    }
+  },
+  "slate_3mm": {
+    "name": "Slate / stone tile (engrave only - diodes cannot cut stone)",
+    "tiers": {
+      "5":  {"cut": {"power": 0, "feed": 0, "passes": 0},    "engrave": {"power": 90, "feed": 1500, "passes": 2}},
+      "10": {"cut": {"power": 0, "feed": 0, "passes": 0},    "engrave": {"power": 80, "feed": 2000, "passes": 1}},
+      "20": {"cut": {"power": 0, "feed": 0, "passes": 0},    "engrave": {"power": 65, "feed": 2500, "passes": 1}},
+      "40": {"cut": {"power": 0, "feed": 0, "passes": 0},    "engrave": {"power": 50, "feed": 3000, "passes": 1}}
     }
   }
 }

@@ -1,0 +1,6 @@
+# notes (max 5 lines)
+1. Followed SKILL.md workflow: step 0 defaults assumed (SVG input / 20W / acrylic_dark_3mm / fill / bed 300x300, input origin top-left, output origin bottom-left); step 1 generated with the script (never hand-written G-code); step 2 self-checked stderr + bbox + est; step 3 delivered path + params + safety + warnings.
+2. Material tier: --laser-w 20 selected the 20W tier's engrave block (fill reuses engrave, since acrylic_dark_3mm has no explicit fill block) -> 35% / S350 / F4000 / 1 pass.
+3. Sizing decision: used --normalize auto --fit contain so the star keeps its true proportions (50.00 x 47.73 mm, spanning the 50 mm target); --fit stretch was rejected and its [warn] (aspect 88x84) is quoted in reply.md/commands.txt. The SVG's own viewBox framing would give only 44 x 42 mm, also quoted as an alternative.
+4. Zero [warn] and zero [error] lines were produced by the final run (exit 0) - nothing was suppressed; the only failure-free alternative runs (stretch / viewBox frame) also exited 0.
+5. Unsure about: whether the user's "50mm 见方" means the star must span 50 mm (chosen) or the artwork box is 50x50 (alternative given); and the SVG asset is geometrically an 8-pointed star, not the 5-pointed star the user named - flagged in reply.md rather than silently redrawn.
