@@ -1,6 +1,12 @@
 ---
 name: laser-gcode
-description: 将平面图形（顶点坐标列表或 SVG 矢量文件）转换为可直接上机的 GRBL 激光 G 代码，并按材料与激光器额定功率给出切割/雕刻/填充的功率、速度、遍数，自动换算 S 值。内置材料参数库（椴木、MDF、硬木、竹板、亚克力、皮革、纸板、纸张、毛毡、帆布、板岩、阳极氧化铝），支持矢量切割、轮廓雕刻、内部 hatch 填充扫描，自带坐标翻转、viewBox 缩放、刀路越界与床身校验、耗时估计与安全检查。当用户提到激光雕刻、激光切割、G 代码生成、GRBL、LightBurn、雕刻机参数、把图形/形状/SVG 转成 G 代码、激光功率速度、或要在木头/亚克力/皮革/纸板等材料上激光加工时，都应使用本 skill，即使用户没有明说 skill 或 G 代码。Also use for English requests such as laser engraving, laser cutting, convert SVG to gcode, generate GRBL gcode, laser power and speed settings, cut this shape on wood, acrylic or leather, laser cutter parameters.
+slug: laser-gcode
+displayName: 激光图形转G代码
+version: 2.1.0
+summary: 位图 / 矢量转 GRBL 激光 G 代码：13 种材料参数与 S 换算、刀路与床身校验，附离线交互式 PNG/JPEG 矢量化工作台。
+homepage: https://github.com/John-20260101/laser-gcode
+tags: [激光, 激光雕刻, 激光切割, G代码, GRBL, SVG, 位图矢量化, 图像处理]
+description: 将平面图形（顶点坐标列表、SVG 矢量文件，或 PNG/JPEG 位图）转换为可直接上机的 GRBL 激光 G 代码，并按材料与激光器额定功率给出切割/雕刻/填充的功率、速度、遍数，自动换算 S 值。内置材料参数库（椴木、MDF、硬木、竹板、亚克力、皮革、纸板、纸张、毛毡、帆布、板岩、阳极氧化铝），支持矢量切割、轮廓雕刻、内部 hatch 填充扫描，自带坐标翻转、viewBox 缩放、刀路越界与床身校验、耗时估计与安全检查。内置的交互页面可把 PNG/JPEG 图片矢量化成 SVG 再转 G 代码。当用户提到激光雕刻、激光切割、G 代码生成、GRBL、LightBurn、雕刻机参数、把图形/形状/SVG/图片 转成 G 代码、图片矢量化、激光功率速度、或要在木头/亚克力/皮革/纸板等材料上激光加工时，都应使用本 skill，即使用户没有明说 skill 或 G 代码。Also use for English requests such as laser engraving, laser cutting, convert SVG to gcode, generate GRBL gcode, laser power and speed settings, cut this shape on wood, acrylic or leather, laser cutter parameters.
 ---
 
 # 激光图形转 G 代码
@@ -10,7 +16,7 @@ description: 将平面图形（顶点坐标列表或 SVG 矢量文件）转换�
 ## 何时使用
 
 凡是涉及「激光雕刻/切割」「图形转 G 代码」「激光功率速度」「在 X 材料上激光加工」的需求都应触发。
-典型信号：用户贴了轮廓图、给了 SVG、列了一串坐标点、问「这个图形要多少功率多快速度」，
+典型信号：用户贴了轮廓图/截图/照片、给了 SVG、列了一串坐标点、问「这个图形要多少功率多快速度」，
 或提到 GRBL / LightBurn / 雕刻机 / 激光模组。
 
 ## 第 0 步：先确认机器与环境
@@ -20,7 +26,7 @@ description: 将平面图形（顶点坐标列表或 SVG 矢量文件）转换�
 
 | 要确认 | 默认 | 为什么重要 |
 |---|---|---|
-| 图形 | 必填 | 顶点坐标（归一化 0–100 网格）或 SVG 文件路径 |
+| 图形 | 必填 | 顶点坐标（归一化 0–100 网格）、SVG 路径，或 PNG/JPEG（用交互页面矢量化） |
 | 激光器额定功率 | 10W | 决定材料库档位 → 决定 `S` 值 |
 | 材料 | `plywood_3mm` | 见 `references/materials.json` 的 key，或让脚本 `--list-materials` |
 | 作业类型 | `cut` | `cut` 切穿 / `engrave` 描边 / `fill` 内部填充 |
@@ -120,6 +126,28 @@ python3 scripts/generate_gcode.py \
 3. **安全提示**：按材料说清通风/气泵/护目/测试网格（见「安全红线」）
 4. **所有 `[warn]` 的转述**：脚本已经替你做了体检，别把体检报告丢掉
 
+## 图片输入：交互式矢量化工作台
+
+用户给的是 PNG/JPEG（截图、照片、logo 位图）时，**不要再让他自己去找 SVG**。
+随 skill 附带的单文件页面先把位图变成矢量，再下载 SVG 喂脚本，或直接在页面里出 G 代码：
+
+```bash
+bash scripts/open_vectorizer.sh      # 等价于用浏览器打开 assets/vectorizer.html
+```
+
+页面是纯前端离线单文件（图片不上传），流程：取色/阈值 → 二值掩膜 → 像素边界追踪闭合轮廓（含孔洞）
+→ RDP 简化 + 可选平滑 → 裁留白并映射到目标 mm → 切割/描边，或 hatch 填充（逐段 `M5 → G0 → M3 S → G1`）
+→ 材料库选档、`S` 换算、床身校验、耗时估计 → 下载 `.gcode` / `.svg`。
+
+要点：
+
+- 页面材料表由 `references/materials.json` 注入；**改完 JSON 必须**跑
+  `python3 scripts/sync_materials.py`（加 `--check` 只校验，不同步就退出码 1）。
+- 导出的 SVG 是毫米坐标、`viewBox 0 0 W H`，可直接 `--svg` 喂给脚本；
+  实测同一图形两条链路的 bbox、燃烧长度、`S`/`F`/遍数完全一致，可用来交叉复核。
+- 适合 logo、剪影、线稿；**照片**会碎成大量轮廓，先做提亮/去背景。
+- 位图矢量化只给二值轮廓：不保留灰度，也不做网点/抖动；要照片级灰度雕刻得换工具。
+
 ## SVG 支持范围
 
 | 类别 | 支持 | 不支持时的行为 |
@@ -171,6 +199,7 @@ python3 scripts/generate_gcode.py \
 - `cut.passes = 0` 表示该材料不能切割（阳极氧化铝、板岩只能雕刻/标记）。
 - 新增材料只需在 `materials.json` 加一个 key，按档位填 `cut`/`engrave`（可选 `fill`）；
   脚本启动时会校验 schema，字段缺失或功率越界会直接报错。
+- 改完材料库记得 `python3 scripts/sync_materials.py`，否则交互页面还停在旧参数上。
 
 ## 失败处理与边界
 
@@ -179,7 +208,8 @@ python3 scripts/generate_gcode.py \
 - `--hatch-spacing` ≤ 0、扫描线数超限 → `[error]`，不会死循环。
 - **二极管激光不能切金属、不能切透明亚克力**——明确告知用户限制，不要硬生成注定失败的 G 代码。
 - SVG 里没有可用图形 → `[error]` 并列出支持的标签；含 `<text>` 会 `[warn]` 说明已跳过。
-- 用户给的是**图片**而非坐标/SVG → 请他提供 SVG，或按枫叶案例那样给出归一化顶点坐标。
+- 用户给的是**图片**而非坐标/SVG → 用 `assets/vectorizer.html` 矢量化（见「图片输入」一节），
+  不要让他自己去转 SVG；照片类素材先说明二值轮廓的局限。
 - 不要手工编辑脚本生成的 G 代码；需要改动就改输入参数重新生成。
 
 ## 排障

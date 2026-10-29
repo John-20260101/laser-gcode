@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>激光矢量工作台 · PNG/JPEG → SVG → G-code</title>
+<style>
+:root{
+  --bg:#0b1113;
+  --bg-2:#101a1e;
+  --panel:#131f23;
+  --line:#23343a;
+  --line-2:#314850;
+  --text:#e7ede9;
+  --muted:#8ba09f;
+  --dim:#5c7273;
+  --laser:#ff7a1a;
+  --laser-soft:rgba(255,122,26,.12);
+  --vector:#4fe0cf;
+  --ok:#a8d96a;
+  --warn:#f5c451;
+  --err:#ff5d73;
+  --mono:ui-monospace,"SFMono-Regular","SF Mono",Menlo,"Cascadia Mono",monospace;
+  --sans:"SF Pro Text",-apple-system,"Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:12.5px/1.55 var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+h1,h2,p,ul{margin:0}
+
+/* ---------- top bar ---------- */
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.mark{width:26px;height:26px;flex:0 0 26px;border:1px solid var(--line-2);background:#0a1114;padding:2px}
+.brand-t h1{font-size:14.5px;font-weight:650;letter-spacing:.01em;line-height:1.25}
+.brand-t p{font:10px/1.3 var(--mono);color:var(--dim);letter-spacing:.04em}
+.top-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.badge{font:10.5px var(--mono);color:var(--muted);border:1px solid var(--line);padding:4px 8px;background:#0c1417;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+button{background:#1a272c;border:1px solid var(--line-2);border-radius:2px;padding:6px 11px;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+button:hover{background:#22353b;border-color:#4a656d}
+button:active{transform:translateY(1px)}
+button.primary{background:var(--laser);border-color:var(--laser);color:#191008;font-weight:650}
+button.primary:hover{background:#ff8d3e;border-color:#ff8d3e}
+button.ghost{background:transparent;color:var(--muted)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.mini{padding:3px 8px;font-size:11px;background:transparent;color:var(--muted);border-color:var(--line)}
+
+/* ---------- rack ---------- */
+.rack{display:grid;grid-template-columns:332px minmax(0,1fr) 396px;height:calc(100vh - 56px - 33px)}
+.col{overflow-y:auto;overflow-x:hidden;background:var(--bg-2);scrollbar-width:thin;scrollbar-color:#2a3d43 transparent}
+.col::-webkit-scrollbar{width:8px}
+.col::-webkit-scrollbar-thumb{background:#24383e;border-radius:4px}
+.col.left{border-right:1px solid var(--line)}
+.col.right{border-left:1px solid var(--line)}
+.sec{padding:11px 14px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.sec-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.sec-h .idx{font:10px var(--mono);color:var(--laser);letter-spacing:.06em}
+.sec-h h2{font-size:12px;font-weight:600;letter-spacing:.02em}
+.sec-h .hint{margin-left:auto;font:10px var(--mono);color:var(--dim);text-align:right}
+
+/* ---------- fields ---------- */
+.field{margin-top:8px}
+.field>.lab{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted);margin-bottom:4px;gap:8px}
+.field .val{font:10.5px var(--mono);color:var(--text);white-space:nowrap}
+input[type=number],input[type=text],select{height:28px;width:100%;background:#0a1316;border:1px solid var(--line);border-radius:2px;color:var(--text);padding:0 7px;font:11.5px var(--mono);outline:none;transition:border-color .12s}
+input[type=number]:focus,input[type=text]:focus,select:focus{border-color:var(--laser)}
+select{padding-right:4px}
+input[type=range]{width:100%;accent-color:var(--laser);height:16px;margin:0}
+.disabled{opacity:.4}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row2.single{grid-template-columns:1fr}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.check{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:11.5px;color:var(--muted);cursor:pointer;user-select:none}
+.check input{accent-color:var(--laser);width:13px;height:13px;margin:0}
+.inline-note{font-size:10.5px;color:var(--dim);margin-top:6px;line-height:1.45}
+.adv{margin-top:10px;border-top:1px dashed var(--line);padding-top:7px}
+.adv summary{list-style:none;cursor:pointer;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.adv summary::-webkit-details-marker{display:none}
+.adv summary::after{content:"展开";font:9.5px var(--mono);color:var(--dim)}
+.adv[open] summary::after{content:"收起"}
+.adv summary:hover{color:var(--text)}
+
+/* ---------- drop ---------- */
+.drop{display:flex;align-items:center;gap:11px;border:1px dashed var(--line-2);background:#0c1518;padding:9px;cursor:pointer;border-radius:2px;transition:border-color .12s,background .12s}
+.drop:hover,.drop.over{border-color:var(--laser);background:var(--laser-soft)}
+.drop-thumb{width:48px;height:48px;flex:0 0 48px;border:1px solid var(--line);background:#080e10;display:grid;place-items:center;overflow:hidden;position:relative}
+.drop-thumb::before{content:"⊞";font-size:20px;color:#33525a}
+.drop.has .drop-thumb::before{display:none}
+.drop-thumb img{display:none;width:100%;height:100%;object-fit:contain}
+.drop.has .drop-thumb img{display:block}
+.drop-t{font-size:12.5px;font-weight:600;line-height:1.3}
+.drop-s{font-size:10.5px;color:var(--dim);margin-top:3px;line-height:1.4}
+.sample-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10.5px;color:var(--dim)}
+.sample-row .mini{margin-left:auto}
+.sample-row .mini+.mini{margin-left:0}
+
+.mask-wrap{margin-top:10px;border:1px solid var(--line);background:#080e10}
+#maskCanvas{display:block;width:100%;height:68px;object-fit:contain;image-rendering:pixelated}
+.mask-cap{font:9.5px var(--mono);color:var(--dim);padding:4px 7px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden}
+
+/* ---------- stage ---------- */
+.stage{position:relative;background:#0b1113;overflow:hidden;min-height:300px}
+#stage{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#stage.dragging{cursor:grabbing}
+.stage-tools{position:absolute;left:12px;top:27px;z-index:3;display:flex;align-items:center;gap:8px}
+.stage-tools button{background:rgba(13,20,23,.9);backdrop-filter:blur(4px)}
+.seg{display:flex;border:1px solid var(--line);background:rgba(13,20,23,.9);backdrop-filter:blur(4px)}
+.seg button{border:0;border-right:1px solid var(--line);background:transparent;color:var(--dim);padding:5px 9px;font-size:10.5px;border-radius:0}
+.seg button:last-child{border-right:0}
+.seg button.on{color:var(--text);background:rgba(255,122,26,.14);box-shadow:inset 0 -2px 0 var(--laser)}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.seg button:hover{background:#22353b}
+.legend{position:absolute;right:12px;top:27px;z-index:3;font:9.5px/1.7 var(--mono);color:var(--muted);background:rgba(11,17,19,.82);border:1px solid var(--line);padding:7px 9px;pointer-events:none}
+.legend i{display:inline-block;width:13px;height:2px;margin-right:6px;vertical-align:middle}
+.stage-empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none;padding:24px;z-index:1}
+.stage-empty .e1{font-size:15px;font-weight:600;color:#c6d4d1}
+.stage-empty .e2{font:10.5px/1.7 var(--mono);color:var(--muted);margin-top:8px;max-width:360px}
+.stage-empty .cta{pointer-events:auto;margin:18px auto 0;background:var(--laser);border:1px solid var(--laser);color:#191008;font-weight:650;padding:7px 20px}
+.stage-empty .cta:hover{background:#ff8d3e}
+.stage-empty.hide{display:none}
+
+/* ---------- status bar ---------- */
+.statusbar{height:33px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--line);background:var(--bg-2);font:10.5px var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden}
+.statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--dim);display:inline-block;margin-right:6px}
+.statusbar .dot.ok{background:var(--ok);box-shadow:0 0 6px rgba(168,217,106,.6)}
+.statusbar .dot.busy{background:var(--laser);box-shadow:0 0 6px rgba(255,122,26,.6)}
+.statusbar .dot.err{background:var(--err)}
+.statusbar .right{margin-left:auto;color:var(--dim)}
+
+/* ---------- jobs ---------- */
+.jobs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.jobs input{position:absolute;opacity:0;pointer-events:none}
+.jobs label{padding:6px 0;text-align:center;font-size:11.5px;color:var(--muted);cursor:pointer;border-right:1px solid var(--line);transition:background .12s,color .12s}
+.jobs label:last-of-type{border-right:0}
+.jobs label:hover{background:#16232a}
+.jobs input:checked+label{background:var(--laser-soft);color:var(--laser);box-shadow:inset 0 -2px 0 var(--laser)}
+.jobs input:focus-visible+label{outline:2px solid var(--vector);outline-offset:-2px}
+
+/* ---------- output ---------- */
+.presets-row{display:flex;align-items:center;gap:6px;margin-top:10px}
+.presets-row .readout{font:10.5px var(--mono);color:var(--muted);margin-left:auto;text-align:right}
+.presets-row .readout b{color:var(--laser);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.chip{font:10px var(--mono);color:var(--text);background:#0c1518;border:1px solid var(--line);padding:3px 6px;border-radius:2px;white-space:nowrap}
+.chip b{color:var(--laser);font-weight:600}
+.warns{display:flex;flex-direction:column;gap:4px;margin:6px 0 0}
+.warn{font-size:10.5px;line-height:1.45;padding:5px 8px;border-left:2px solid var(--warn);background:rgba(245,196,81,.06);color:#e6d9b3}
+.warn.err{border-color:var(--err);background:rgba(255,93,115,.07);color:#f2c3ca}
+.warn.info{border-color:var(--vector);background:rgba(79,224,207,.05);color:#c2e4e0}
+.code{font:10px/1.5 var(--mono);background:#080e10;border:1px solid var(--line);padding:9px;height:214px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#aec2be;margin:7px 0 0;tab-size:2}
+.code .cmt{color:#4f6b6a}
+.dl-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+.dl-row button{font-size:11px;padding:5px 8px}
+.safety{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.safety-h{font:10px var(--mono);color:var(--laser);letter-spacing:.06em;margin-bottom:5px}
+.safety ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:3px}
+.safety li{font-size:10.5px;color:var(--muted);padding-left:11px;position:relative;line-height:1.45}
+.safety li::before{content:"";position:absolute;left:0;top:7px;width:3px;height:3px;background:var(--dim)}
+.safety .mat{color:#e0b48e;margin-top:6px;font-size:10.5px;line-height:1.45}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:48px;transform:translate(-50%,8px);background:#1b2b30;border:1px solid var(--line-2);padding:7px 14px;font-size:11.5px;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:50;max-width:70vw}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+:focus-visible{outline:2px solid var(--vector);outline-offset:1px}
+
+@media (max-width:1180px){
+  body{overflow:auto}
+  .rack{grid-template-columns:1fr;height:auto}
+  .stage{order:-1;height:56vh}
+  .col{overflow:visible;border:0}
+  .col.left{border-right:0;border-bottom:1px solid var(--line)}
+  .col.right{border-left:0;border-top:1px solid var(--line)}
+  .statusbar{position:sticky;bottom:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 19h4M3 15h7M3 11h10" stroke="#4fe0cf" stroke-width="1.5" stroke-linecap="square" fill="none"/>
+      <path d="M14 5h7v14h-7z" stroke="#ff7a1a" stroke-width="1.5" fill="none"/>
+    </svg>
+    <div class="brand-t">
+      <h1>激光矢量工作台</h1>
+      <p>位图 → 矢量 SVG → GRBL G 代码</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="badge" id="matBadge">椴木 / 胶合板 3mm</span>
+    <button id="btnSample" class="ghost" title="载入一张示例图，先看效果">载入示例</button>
+    <button id="btnGcode" class="primary" title="用当前矢量与参数生成 G 代码">生成 G 代码</button>
+  </div>
+</header>
+
+<main class="rack">
+
+  <!-- ============ 左栏：图片 + 矢量化 + 尺寸 ============ -->
+  <section class="col left">
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">01</span><h2>图片</h2><span class="hint" id="imgMeta">未导入</span></div>
+      <div id="dropZone" class="drop" tabindex="0" role="button" aria-label="导入 PNG 或 JPEG 图片">
+        <div class="drop-thumb"><img id="thumb" alt="" /></div>
+        <div>
+          <div class="drop-t" id="dropTitle">选择图片</div>
+          <div class="drop-s" id="dropSub">PNG / JPEG，拖入、点击或 ⌘V 粘贴</div>
+        </div>
+      </div>
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden />
+      <div class="sample-row">
+        <span>没有素材？</span>
+        <button class="mini" data-sample="gear">齿轮</button>
+        <button class="mini" data-sample="star">星标</button>
+        <button class="mini" data-sample="leaf">叶片</button>
+      </div>
+      <div class="mask-wrap">
+        <canvas id="maskCanvas"></canvas>
+        <div class="mask-cap"><span id="maskCap">二值化预览 — 未导入</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">02</span><h2>矢量化</h2><span class="hint">从像素到轮廓</span></div>
+
+      <div class="field">
+        <div class="lab"><span>细节 · 采样宽度</span><span class="val" id="detailVal">820 px</span></div>
+        <input type="range" id="detail" min="300" max="1400" step="20" value="820" />
+      </div>
+
+      <div class="field">
+        <div class="lab"><span>阈值</span><span class="val" id="threshVal">自动</span></div>
+        <div class="row2" id="threshRow">
+          <select id="threshMode">
+            <option value="auto">自动 Otsu</option>
+            <option value="manual">手动</option>
+          </select>
+          <input type="range" id="thresh" min="1" max="254" step="1" value="128" disabled />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="lab"><span>取色方式</span><span class="val"></span></div>
+        <select id="alphaMode">
+          <option value="auto">自动（有透明通道则用 Alpha）</option>
+          <option value="luma">按亮度（深色为图形）</option>
+          <option value="alpha">按透明通道</option>
+        </select>
+      </div>
+
+      <div class="check"><input type="checkbox" id="invert" /><label for="invert">反相：亮部作为图形</label></div>
+
+      <div class="field">
+        <div class="lab"><span>简化容差</span><span class="val" id="simplifyVal">1.1 px</span></div>
+        <input type="range" id="simplify" min="0.2" max="5" step="0.1" value="1.1" />
+      </div>
+
+      <details class="adv">
+        <summary>预处理与平滑</summary>
+        <div class="field">
+          <div class="lab"><span>边缘柔化</span><span class="val" id="blurVal">0 px</span></div>
+          <input type="range" id="blur" min="0" max="6" step="1" value="0" />
+        </div>
+        <div class="row2">
+          <div class="field">
+            <div class="lab"><span>闭运算</span><span class="val" id="closeRVal">0 px</span></div>
+            <input type="range" id="closeR" min="0" max="4" step="1" value="0" />
+          </div>
+          <div class="field">
+            <div class="lab"><span>去杂点</span><span class="val" id="minAreaVal">12 px²</span></div>
+            <input type="number" id="minArea" min="0" max="5000" step="1" value="12" />
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <div class="lab"><span>补小孔</span><span class="val" id="minHoleVal">6 px²</span></div>
+            <input type="number" id="minHole" min="0" max="5000" step="1" value="6" />
+          </div>
+          <div class="field">
+            <div class="lab"><span>忽略小于</span><span class="val" id="minFeatureVal">0.20 mm²</span></div>
+            <input type="number" id="minFeature" min="0" max="100" step="0.05" value="0.2" />
+          </div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>曲线平滑</span><span class="val" id="smoothVal">0 次</span></div>
+          <input type="range" id="smooth" min="0" max="3" step="1" value="0" />
+        </div>
+      </details>
+      <div class="inline-note">容差越小越贴合像素，点位与耗时也越多。</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">03</span><h2>尺寸与摆放</h2><span class="hint" id="sizeHint">80 × 80 mm</span></div>
+      <div class="row2">
+        <div class="field">
+          <div class="lab"><span>宽 mm</span><span class="val"></span></div>
+          <input type="number" id="targetW" min="1" max="2000" step="1" value="80" />
+        </div>
+        <div class="field">
+          <div class="lab"><span>高 mm</span><span class="val"></span></div>
+          <input type="number" id="targetH" min="1" max="2000" step="1" value="80" />
+        </div>
+      </div>
+      <div class="check"><input type="checkbox" id="lockAspect" checked /><label for="lockAspect">锁定宽高比（改宽度时自动算高度）</label></div>
+      <div class="field">
+        <div class="lab"><span>拟合方式</span><span class="val"></span></div>
+        <select id="fit">
+          <option value="contain">等比缩放 · 居中（推荐）</option>
+          <option value="stretch">拉伸铺满（圆会变椭圆）</option>
+        </select>
+      </div>
+      <div class="check"><input type="checkbox" id="trim" checked /><label for="trim">裁掉空白边距，让图形贴满目标框</label></div>
+      <div class="row2">
+        <div class="field">
+          <div class="lab"><span>偏移 X mm</span><span class="val"></span></div>
+          <input type="number" id="offsetX" min="0" step="1" value="0" />
+        </div>
+        <div class="field">
+          <div class="lab"><span>偏移 Y mm</span><span class="val"></span></div>
+          <input type="number" id="offsetY" min="0" step="1" value="0" />
+        </div>
+      </div>
+      <div class="inline-note">偏移在 Y 翻转之后施加，正值向右 / 向上，用于把工件挪进床身或居中。</div>
+    </div>
+  </section>
+
+  <!-- ============ 中间：预览 ============ -->
+  <section class="stage">
+    <canvas id="stage" aria-label="刀路预览"></canvas>
+    <div class="stage-tools">
+      <button id="btnFit" title="缩放到合适大小">适应窗口</button>
+      <div class="seg" role="group" aria-label="图层">
+        <button data-layer="src" class="on" title="半透明底图">原图</button>
+        <button data-layer="vec" class="on" title="矢量化轮廓">矢量</button>
+        <button data-layer="path" id="layerFill" class="on" title="填充扫描线（仅填充模式）">填充</button>
+      </div>
+    </div>
+    <div class="legend">
+      <div><i style="background:#4fe0cf"></i>矢量轮廓</div>
+      <div><i style="background:#ff7a1a"></i>切割 / 填充</div>
+      <div><i style="background:#ff5d73"></i>床身边界</div>
+    </div>
+    <div class="stage-empty" id="stageEmpty">
+      <div class="e1">先放一张 PNG / JPEG</div>
+      <div class="e2">自动二值化 → 追踪轮廓 → 生成矢量 → 计算刀路<br />适合 logo、剪影、线稿；照片会碎成大量轮廓<br />全程在本机浏览器内完成，图片不会上传</div>
+      <button class="cta" id="btnEmptyPick">选择图片</button>
+    </div>
+  </section>
+
+  <!-- ============ 右栏：参数 + 输出 ============ -->
+  <section class="col right">
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">04</span><h2>加工参数</h2><span class="hint" id="tierHint">10W 档</span></div>
+
+      <div class="jobs">
+        <input type="radio" name="job" id="jobCut" value="cut" checked /><label for="jobCut">切割 A</label>
+        <input type="radio" name="job" id="jobEngrave" value="engrave" /><label for="jobEngrave">描边 B</label>
+        <input type="radio" name="job" id="jobFill" value="fill" /><label for="jobFill">填充 C</label>
+      </div>
+
+      <div class="field">
+        <div class="lab"><span>材料</span><span class="val" id="cutHint"></span></div>
+        <select id="material"></select>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <div class="lab"><span>激光器额定功率</span><span class="val"></span></div>
+          <select id="laserW">
+            <option value="5">5 W</option>
+            <option value="10" selected>10 W</option>
+            <option value="20">20 W</option>
+            <option value="40">40 W</option>
+            <option value="60">60 W</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="lab"><span>$30 最大 S</span><span class="val"></span></div>
+          <input type="number" id="maxS" min="1" max="65535" step="1" value="1000" />
+        </div>
+      </div>
+
+      <div class="row3">
+        <div class="field">
+          <div class="lab"><span>功率 %</span><span class="val"></span></div>
+          <input type="number" id="power" min="0" max="100" step="1" value="100" />
+        </div>
+        <div class="field">
+          <div class="lab"><span>速度 mm/min</span><span class="val"></span></div>
+          <input type="number" id="feed" min="1" step="10" value="500" />
+        </div>
+        <div class="field">
+          <div class="lab"><span>遍数</span><span class="val"></span></div>
+          <input type="number" id="passes" min="1" max="20" step="1" value="2" />
+        </div>
+      </div>
+
+      <div class="presets-row">
+        <button class="mini" id="btnPreset">恢复推荐值</button>
+        <span class="readout"><b id="sReadout">S 1000</b> · <span id="optical">10.0 W</span></span>
+      </div>
+
+      <div id="fillOpts" hidden>
+        <div class="row3">
+          <div class="field">
+            <div class="lab"><span>线距 mm</span><span class="val"></span></div>
+            <input type="number" id="spacing" min="0.05" max="3" step="0.05" value="0.2" />
+          </div>
+          <div class="field">
+            <div class="lab"><span>角度 °</span><span class="val"></span></div>
+            <input type="number" id="angle" min="0" max="180" step="5" value="0" />
+          </div>
+          <div class="field">
+            <div class="lab"><span>描边</span><span class="val"></span></div>
+            <select id="outline">
+              <option value="after" selected>填充后</option>
+              <option value="before">填充前</option>
+              <option value="none">不描边</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">05</span><h2>输出</h2><span class="hint" id="gcodeMeta">—</span></div>
+      <div class="row2">
+        <div class="field">
+          <div class="lab"><span>激光指令</span><span class="val"></span></div>
+          <select id="laserMode">
+            <option value="m3">M3 恒定功率</option>
+            <option value="m4">M4 动态功率</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="lab"><span>床身 W × H</span><span class="val">可选</span></div>
+          <div class="row2">
+            <input type="number" id="bedW" min="0" step="1" placeholder="W" />
+            <input type="number" id="bedH" min="0" step="1" placeholder="H" />
+          </div>
+        </div>
+      </div>
+      <div class="check"><input type="checkbox" id="park" checked /><label for="park">加工结束后回到原点</label></div>
+      <div class="dl-row">
+        <button id="btnDlGcode">下载 .gcode</button>
+        <button id="btnDlSvg">下载 .svg</button>
+      </div>
+      <div class="dl-row">
+        <button id="btnCopy">复制 G 代码</button>
+        <button id="btnDlJson">导出工程 .json</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="idx">06</span><h2>G 代码</h2><span class="hint" id="statInline">待生成</span></div>
+      <div class="chips" id="summary"></div>
+      <div class="warns" id="warnings" aria-live="polite"></div>
+      <pre class="code" id="gcodeOut">尚未生成。点右上角「生成 G 代码」，或按 ⌘/Ctrl + ↵。</pre>
+      <div class="safety">
+        <div class="safety-h">开机前</div>
+        <ul>
+          <li>护目镜 + 外罩，不要直视光斑或工件反射</li>
+          <li>切割开气泵；MDF / 皮革 / 亚克力 / 毛毡必须排烟到室外</li>
+          <li>人不能离开机器，旁边备灭火手段</li>
+          <li>参数只是起点，先在同批废料上打测试网格</li>
+        </ul>
+        <div class="mat" id="safetyNote"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="statusbar">
+  <span id="statState"><span class="dot"></span>待导入</span>
+  <span id="statPaths">路径 —</span>
+  <span id="statPoints">顶点 —</span>
+  <span id="statSize">尺寸 —</span>
+  <span id="statS">S —</span>
+  <span id="statTime">≈ — min</span>
+  <span class="right" id="statCursor">X — · Y —</span>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   laser-gcode · 激光矢量工作台
+   单文件、离线、纯前端：图像 → 二值化 → 轮廓追踪 → 简化 → 毫米坐标
+   → hatch 填充 / 轮廓刀路 → GRBL G 代码。
+   材料参数与 references/materials.json 同源，由 scripts/sync_materials.py 注入。
+   ===================================================================== */
+
+/* MATERIALS:BEGIN */
+const MATERIALS = {
+  "_note": "Starting points for diode lasers. S = power_percent/100 * grbl_max_s. Always test on scrap first. tiers are keyed by optical wattage. A tier may add an optional 'fill' block; when it is absent, fill reuses the 'engrave' block. cut.passes = 0 means the material cannot be cut.",
+  "_how_tiers_work": "The script picks the lowest tier >= --laser-w, or the highest tier when --laser-w is above every tier, and prints a warning in that case. Every entry here is a starting point measured by nobody in particular: batch, focus, lens, air assist and speed all move the real number, so run a test grid before trusting it.",
+  "plywood_3mm": {
+    "name": "Plywood / Basswood 3mm",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 100,
+          "feed": 300,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 55,
+          "feed": 3000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 500,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 40,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 90,
+          "feed": 1000,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 30,
+          "feed": 6000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 70,
+          "feed": 1500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 20,
+          "feed": 8000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "plywood_6mm": {
+    "name": "Plywood 6mm",
+    "tiers": {
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 200,
+          "passes": 4
+        },
+        "engrave": {
+          "power": 40,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 100,
+          "feed": 500,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 30,
+          "feed": 6000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 90,
+          "feed": 800,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 20,
+          "feed": 8000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "hardwood": {
+    "name": "Hardwood (maple/oak/walnut)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 100,
+          "feed": 200,
+          "passes": 4
+        },
+        "engrave": {
+          "power": 70,
+          "feed": 2000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 350,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 50,
+          "feed": 4000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 100,
+          "feed": 700,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 35,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 90,
+          "feed": 1200,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 25,
+          "feed": 7000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "mdf_3mm": {
+    "name": "MDF 3mm (chars easily, use air assist)",
+    "tiers": {
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 300,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 40,
+          "feed": 4500,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 100,
+          "feed": 700,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 30,
+          "feed": 6000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 85,
+          "feed": 1100,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 20,
+          "feed": 8000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "acrylic_dark_3mm": {
+    "name": "Dark/cast acrylic 3mm (diodes cannot cut clear acrylic)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 100,
+          "feed": 200,
+          "passes": 6
+        },
+        "engrave": {
+          "power": 65,
+          "feed": 2000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 300,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 45,
+          "feed": 3500,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 100,
+          "feed": 600,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 35,
+          "feed": 4000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 100,
+          "feed": 900,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 25,
+          "feed": 5000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "leather_2mm": {
+    "name": "Vegetable-tanned leather 2-3mm (ventilate, test for darkening)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 100,
+          "feed": 400,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 30,
+          "feed": 3000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 600,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 20,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 90,
+          "feed": 800,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 15,
+          "feed": 6000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 80,
+          "feed": 1200,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 10,
+          "feed": 8000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "cardboard_2mm": {
+    "name": "Cardboard / corrugated 2mm",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 80,
+          "feed": 500,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 30,
+          "feed": 3000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 60,
+          "feed": 800,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 25,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 50,
+          "feed": 1500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 18,
+          "feed": 7000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 35,
+          "feed": 2500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 12,
+          "feed": 9000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "paper": {
+    "name": "Paper / cardstock",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 40,
+          "feed": 1000,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 20,
+          "feed": 4000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 25,
+          "feed": 1500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 15,
+          "feed": 6000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 18,
+          "feed": 2500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 10,
+          "feed": 8000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 12,
+          "feed": 4000,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 8,
+          "feed": 10000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "anodized_aluminum": {
+    "name": "Anodized aluminum (marking only, removes anodize layer)",
+    "tiers": {
+      "10": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 90,
+          "feed": 3000,
+          "passes": 2
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 80,
+          "feed": 3000,
+          "passes": 2
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 70,
+          "feed": 4000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "bamboo_3mm": {
+    "name": "Bamboo plywood 3mm (chars fast, air assist strongly advised)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 100,
+          "feed": 250,
+          "passes": 4
+        },
+        "engrave": {
+          "power": 60,
+          "feed": 2500,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 100,
+          "feed": 450,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 45,
+          "feed": 4500,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 95,
+          "feed": 900,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 32,
+          "feed": 5500,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 80,
+          "feed": 1300,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 22,
+          "feed": 7500,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "canvas_cotton": {
+    "name": "Cotton canvas / natural fabric (blends melt, PVC is toxic)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 70,
+          "feed": 600,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 25,
+          "feed": 3000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 50,
+          "feed": 1000,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 18,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 38,
+          "feed": 1800,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 12,
+          "feed": 7000,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 28,
+          "feed": 2800,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 8,
+          "feed": 9000,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "felt_3mm": {
+    "name": "Wool / polyester felt 3mm (synthetic felt melts; ventilate)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 85,
+          "feed": 500,
+          "passes": 3
+        },
+        "engrave": {
+          "power": 35,
+          "feed": 3000,
+          "passes": 1
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 65,
+          "feed": 900,
+          "passes": 2
+        },
+        "engrave": {
+          "power": 25,
+          "feed": 5000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 50,
+          "feed": 1500,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 18,
+          "feed": 6500,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 35,
+          "feed": 2400,
+          "passes": 1
+        },
+        "engrave": {
+          "power": 12,
+          "feed": 8500,
+          "passes": 1
+        }
+      }
+    }
+  },
+  "slate_3mm": {
+    "name": "Slate / stone tile (engrave only - diodes cannot cut stone)",
+    "tiers": {
+      "5": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 90,
+          "feed": 1500,
+          "passes": 2
+        }
+      },
+      "10": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 80,
+          "feed": 2000,
+          "passes": 1
+        }
+      },
+      "20": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 65,
+          "feed": 2500,
+          "passes": 1
+        }
+      },
+      "40": {
+        "cut": {
+          "power": 0,
+          "feed": 0,
+          "passes": 0
+        },
+        "engrave": {
+          "power": 50,
+          "feed": 3000,
+          "passes": 1
+        }
+      }
+    }
+  }
+};
+/* MATERIALS:END */
+
+const SAFETY = {
+  plywood_3mm: "胶合板烟大，切割必须排烟并开气泵；薄板易翘曲，压紧再切。",
+  plywood_6mm: "6mm 胶合板需要多遍，注意碳化复燃；每遍之间不要停机太久。",
+  hardwood: "硬木边缘易焦，切割开气泵；深色木材雕刻对比度低，先试片。",
+  mdf_3mm: "MDF 烟气刺激呼吸道，必须外排；切边容易积焦油。",
+  acrylic_dark_3mm: "亚克力气味强，必须排烟；二极管激光切不了透明/浅色亚克力。",
+  leather_2mm: "植鞣皮革需通风；先测是否会变黑、卷边。",
+  cardboard_2mm: "纸板极易引燃，全程看守，旁边备湿毛巾。",
+  paper: "纸张几秒就能起火，功率宁低勿高，全程盯着。",
+  felt_3mm: "化纤毡会熔化并冒烟，必须排烟。",
+  canvas_cotton: "纯棉可加工；混纺会熔化，PVC 涂层有毒。",
+  bamboo_3mm: "竹板含糖易焦，建议开气泵并降一档功率。",
+  slate_3mm: "只能雕刻，二极管切不动石头；粉尘需清理。",
+  anodized_aluminum: "只能打掉氧化层做标记，不能切金属。"
+};
+
+/* ---------------- 小工具 ---------------- */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const num = (id, fallback) => {
+  const el = typeof id === "string" ? $(id) : id;
+  const v = parseFloat(el && el.value);
+  return Number.isFinite(v) ? v : fallback;
+};
+const fmt = (n, d = 3) => (Math.abs(n) < 1e-9 ? 0 : n).toFixed(d);
+const computeS = (pct, maxS) => Math.round(clamp(pct, 0, 100) / 100 * maxS);
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+/* ---------------- 状态 ---------------- */
+const S = {
+  img: null, imgName: "", imgW: 0, imgH: 0,
+  trace: null,
+  paths: [], path2d: null, fillPath2d: null,
+  imgRect: null,
+  stats: { paths: 0, holes: 0, points: 0, w: 0, h: 0, burn: 0, travel: 0, est: 0, spans: 0, rows: 0, s: 0 },
+  gcode: "", svg: "",
+  warnings: [],
+  vecWarn: [], genWarn: [], matWarn: null,
+  layers: { src: true, vec: true, path: true },
+  view: { zoom: 1, tx: 0, ty: 0 },
+  canvas: null,
+  dirty: false,
+  hasGenerated: false
+};
+
+/* =====================================================================
+   1. 图像 → 二值掩膜
+   ===================================================================== */
+function buildTrace(img, cfg) {
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const maxPix = 2400000;
+  let scale = Math.min(1, cfg.detail / iw);
+  if (iw * ih * scale * scale > maxPix) scale = Math.sqrt(maxPix / (iw * ih));
+  const w = Math.max(8, Math.round(iw * scale));
+  const h = Math.max(8, Math.round(ih * scale));
+
+  const off = document.createElement("canvas");
+  off.width = w; off.height = h;
+  const ctx = off.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+
+  const raw = new Float32Array(w * h);
+  const alpha = new Uint8Array(w * h);
+  let alphaCount = 0;
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const a = data[i + 3];
+    alpha[p] = a;
+    if (a < 250) alphaCount++;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // 透明区域合成到白底，避免透明 PNG 的黑色 RGB 被当成图形
+    raw[p] = a >= 250 ? l : (l * a + 255 * (255 - a)) / 255;
+  }
+
+  const useAlpha = cfg.alphaMode === "alpha" || (cfg.alphaMode === "auto" && alphaCount > w * h * 0.02);
+  let values = raw;
+  if (useAlpha) {
+    values = new Float32Array(w * h);
+    for (let p = 0; p < w * h; p++) values[p] = alpha[p];
+  }
+  if (cfg.blur > 0) values = boxBlur(values, w, h, cfg.blur);
+
+  const hist = new Uint32Array(256);
+  for (let p = 0; p < w * h; p++) hist[clamp(Math.round(values[p]), 0, 255)]++;
+  const otsu = otsuThreshold(hist, w * h);
+  const thresh = cfg.threshMode === "manual" ? cfg.thresh : (useAlpha ? Math.min(254, Math.max(1, otsu)) : otsu);
+
+  let mask = new Uint8Array(w * h);
+  let inkCount = 0;
+  for (let p = 0; p < w * h; p++) {
+    const v = values[p];
+    // 亮度模式：暗 = 图形；Alpha 模式：不透明 = 图形
+    let on = useAlpha ? v >= thresh : v <= thresh;
+    if (cfg.invert) on = !on;
+    mask[p] = on ? 1 : 0;
+    if (on) inkCount++;
+  }
+
+  if (cfg.close > 0) mask = morphClose(mask, w, h, cfg.close);
+  despeckle(mask, w, h, cfg.minArea);
+  fillSmallHoles(mask, w, h, cfg.minHole);
+
+  let ink = 0;
+  for (let p = 0; p < w * h; p++) if (mask[p]) ink++;
+  return { w, h, mask, thresh, useAlpha, coverage: ink / (w * h) };
+}
+
+function otsuThreshold(hist, total) {
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 127, bestVar = -1;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > bestVar) { bestVar = between; best = t; }
+  }
+  return best;
+}
+
+function boxBlur(src, w, h, r) {
+  if (r <= 0) return src;
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  const pre = new Float64Array(Math.max(w, h) + 1);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    pre[0] = 0;
+    for (let x = 0; x < w; x++) pre[x + 1] = pre[x] + src[row + x];
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
+      tmp[row + x] = (pre[x1 + 1] - pre[x0]) / (x1 - x0 + 1);
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    pre[0] = 0;
+    for (let y = 0; y < h; y++) pre[y + 1] = pre[y] + tmp[y * w + x];
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+      out[y * w + x] = (pre[y1 + 1] - pre[y0]) / (y1 - y0 + 1);
+    }
+  }
+  return out;
+}
+
+function morphPass(mask, w, h, r, mode) {
+  const tmp = new Uint8Array(w * h);
+  const out = new Uint8Array(w * h);
+  const pre = new Int32Array(Math.max(w, h) + 1);
+  const win = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    pre[0] = 0;
+    for (let x = 0; x < w; x++) pre[x + 1] = pre[x] + mask[row + x];
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
+      const sum = pre[x1 + 1] - pre[x0];
+      const need = x1 - x0 + 1;
+      tmp[row + x] = mode === "max" ? (sum > 0 ? 1 : 0) : (sum === need ? 1 : 0);
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    pre[0] = 0;
+    for (let y = 0; y < h; y++) pre[y + 1] = pre[y] + tmp[y * w + x];
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+      const sum = pre[y1 + 1] - pre[y0];
+      const need = y1 - y0 + 1;
+      out[y * w + x] = mode === "max" ? (sum > 0 ? 1 : 0) : (sum === need ? 1 : 0);
+    }
+  }
+  return out;
+}
+
+function morphClose(mask, w, h, r) {
+  // 先膨胀再腐蚀：连接 JPEG 噪声打断的细线，同时基本保留尺寸
+  return morphPass(morphPass(mask, w, h, r, "max"), w, h, r, "min");
+}
+
+function despeckle(mask, w, h, minArea) {
+  if (minArea <= 1) return;
+  const seen = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i] || seen[i]) continue;
+    let head = 0, tail = 0;
+    queue[tail++] = i; seen[i] = 1;
+    const pix = [];
+    while (head < tail) {
+      const p = queue[head++]; pix.push(p);
+      const x = p % w, y = (p / w) | 0;
+      if (x > 0 && mask[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; queue[tail++] = p - 1; }
+      if (x < w - 1 && mask[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; queue[tail++] = p + 1; }
+      if (y > 0 && mask[p - w] && !seen[p - w]) { seen[p - w] = 1; queue[tail++] = p - w; }
+      if (y < h - 1 && mask[p + w] && !seen[p + w]) { seen[p + w] = 1; queue[tail++] = p + w; }
+    }
+    if (pix.length < minArea) for (const p of pix) mask[p] = 0;
+  }
+}
+
+function fillSmallHoles(mask, w, h, minHole) {
+  if (minHole <= 0) return;
+  const outside = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  let head = 0, tail = 0;
+  const push = (i) => { if (!outside[i] && !mask[i]) { outside[i] = 1; queue[tail++] = i; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (head < tail) {
+    const p = queue[head++];
+    const x = p % w, y = (p / w) | 0;
+    if (x > 0) push(p - 1);
+    if (x < w - 1) push(p + 1);
+    if (y > 0) push(p - w);
+    if (y < h - 1) push(p + w);
+  }
+  const seen = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (mask[i] || outside[i] || seen[i]) continue;
+    let hh = 0, tt = 0;
+    queue[tt++] = i; seen[i] = 1;
+    const pix = [];
+    while (hh < tt) {
+      const p = queue[hh++]; pix.push(p);
+      const x = p % w, y = (p / w) | 0;
+      const nb = [];
+      if (x > 0) nb.push(p - 1);
+      if (x < w - 1) nb.push(p + 1);
+      if (y > 0) nb.push(p - w);
+      if (y < h - 1) nb.push(p + w);
+      for (const q of nb) if (!mask[q] && !outside[q] && !seen[q]) { seen[q] = 1; queue[tt++] = q; }
+    }
+    if (pix.length <= minHole) for (const p of pix) mask[p] = 1;
+  }
+}
+
+/* =====================================================================
+   2. 轮廓追踪（像素边界有向边 → 闭合环）
+   方向：0 右 / 1 下 / 2 左 / 3 上，图形始终在前进方向的右侧。
+   ===================================================================== */
+const DIR_X = [1, 0, -1, 0];
+const DIR_Y = [0, 1, 0, -1];
+
+function traceContours(mask, w, h) {
+  const stride = w + 1;
+  const bits = new Uint8Array(stride * (h + 1));
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      if (!mask[row + x]) continue;
+      const up = y > 0 ? mask[row - w + x] : 0;
+      const dn = y < h - 1 ? mask[row + w + x] : 0;
+      const lf = x > 0 ? mask[row + x - 1] : 0;
+      const rt = x < w - 1 ? mask[row + x + 1] : 0;
+      if (!up) bits[y * stride + x] |= 1;              // 上边 → 右
+      if (!rt) bits[y * stride + x + 1] |= 2;          // 右边 ↓
+      if (!dn) bits[(y + 1) * stride + x + 1] |= 4;    // 下边 ←
+      if (!lf) bits[(y + 1) * stride + x] |= 8;        // 左边 ↑
+    }
+  }
+
+  const loops = [];
+  const total = stride * (h + 1);
+  for (let sy = 0; sy <= h; sy++) {
+    for (let sx = 0; sx <= w; sx++) {
+      let b = bits[sy * stride + sx];
+      while (b) {
+        const d0 = (b & 1) ? 0 : (b & 2) ? 1 : (b & 4) ? 2 : 3;
+        const pts = [sx, sy];
+        let x = sx, y = sy, d = d0, guard = 0, closed = false;
+        while (guard++ < 4 * total) {
+          const idx = y * stride + x;
+          if (!(bits[idx] & (1 << d))) break;
+          bits[idx] &= ~(1 << d);
+          x += DIR_X[d]; y += DIR_Y[d];
+          if (x === sx && y === sy) { closed = true; break; }
+          const nb = bits[y * stride + x];
+          if (!nb) break;
+          // 优先右转，保证对角相接的两个区域各自闭合
+          let nd = (d + 1) & 3;
+          if (!(nb & (1 << nd))) {
+            nd = d;
+            if (!(nb & (1 << nd))) {
+              nd = (d + 3) & 3;
+              if (!(nb & (1 << nd))) nd = (d + 2) & 3;
+            }
+          }
+          if (nd !== d) pts.push(x, y);
+          d = nd;
+        }
+        if (closed && pts.length >= 6) loops.push(pts);
+        b = bits[sy * stride + sx];
+      }
+    }
+  }
+  return loops;
+}
+
+/* ---------------- 简化 / 平滑 ---------------- */
+function rdpOpen(pts, tol) {
+  const n = pts.length >> 1;
+  if (n < 3) return pts.slice();
+  const keep = new Uint8Array(n);
+  keep[0] = 1; keep[n - 1] = 1;
+  const stack = [[0, n - 1]];
+  const tol2 = tol * tol;
+  while (stack.length) {
+    const seg = stack.pop();
+    const i = seg[0], j = seg[1];
+    if (j <= i + 1) continue;
+    const x1 = pts[i * 2], y1 = pts[i * 2 + 1];
+    const x2 = pts[j * 2], y2 = pts[j * 2 + 1];
+    const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+    let best = -1, bestI = -1;
+    for (let k = i + 1; k < j; k++) {
+      const px = pts[k * 2], py = pts[k * 2 + 1];
+      let d2;
+      if (len2 < 1e-12) {
+        const ex = px - x1, ey = py - y1; d2 = ex * ex + ey * ey;
+      } else {
+        const t = ((px - x1) * dx + (py - y1) * dy) / len2;
+        let cx, cy;
+        if (t < 0) { cx = x1; cy = y1; }
+        else if (t > 1) { cx = x2; cy = y2; }
+        else { cx = x1 + t * dx; cy = y1 + t * dy; }
+        const ex = px - cx, ey = py - cy; d2 = ex * ex + ey * ey;
+      }
+      if (d2 > best) { best = d2; bestI = k; }
+    }
+    if (best > tol2) {
+      keep[bestI] = 1;
+      stack.push([i, bestI]);
+      stack.push([bestI, j]);
+    }
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(pts[i * 2], pts[i * 2 + 1]);
+  return out;
+}
+
+function simplifyClosed(pts, tol) {
+  const n = pts.length >> 1;
+  if (n < 4) return pts.slice();
+  let k = 1, best = -1;
+  for (let i = 1; i < n; i++) {
+    const dx = pts[i * 2] - pts[0], dy = pts[i * 2 + 1] - pts[1];
+    const d = dx * dx + dy * dy;
+    if (d > best) { best = d; k = i; }
+  }
+  if (k < 1 || k >= n - 1) return pts.slice();
+  const a = pts.slice(0, (k + 1) * 2);
+  const b = pts.slice(k * 2).concat([pts[0], pts[1]]);
+  const ra = rdpOpen(a, tol);
+  const rb = rdpOpen(b, tol);
+  return ra.concat(rb.slice(2, Math.max(2, rb.length - 2)));
+}
+
+function chaikin(pts, iters) {
+  let cur = pts;
+  for (let it = 0; it < iters; it++) {
+    const n = cur.length >> 1;
+    if (n < 3) return cur;
+    const out = new Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const x0 = cur[i * 2], y0 = cur[i * 2 + 1];
+      const x1 = cur[j * 2], y1 = cur[j * 2 + 1];
+      out[i * 4] = x0 * 0.75 + x1 * 0.25;
+      out[i * 4 + 1] = y0 * 0.75 + y1 * 0.25;
+      out[i * 4 + 2] = x0 * 0.25 + x1 * 0.75;
+      out[i * 4 + 3] = y0 * 0.25 + y1 * 0.75;
+    }
+    cur = out;
+  }
+  return cur;
+}
+
+/* ---------------- 像素 → 毫米 ---------------- */
+function mapLoops(loops, wPx, hPx, cfg) {
+  const tw = cfg.targetW, th = cfg.targetH;
+  // 源坐标系：整张画布，或（裁掉留白时）所有轮廓的包围盒
+  let fx = 0, fy = 0, fw = wPx, fh = hPx;
+  if (cfg.trim && loops.length) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const loop of loops) {
+      for (let i = 0; i < loop.length; i += 2) {
+        const x = loop[i], y = loop[i + 1];
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (isFinite(x0) && x1 - x0 > 1 && y1 - y0 > 1) { fx = x0; fy = y0; fw = x1 - x0; fh = y1 - y0; }
+  }
+  let sx, sy, baseX, baseY;
+  if (cfg.fit === "contain") {
+    const s = Math.min(tw / fw, th / fh);
+    sx = sy = s;
+    baseX = (tw - fw * s) / 2;
+    baseY = (th - fh * s) / 2;
+  } else {
+    sx = tw / fw; sy = th / fh;
+    baseX = 0; baseY = 0;
+  }
+
+  const out = [];
+  let dropped = 0;
+  for (const loop of loops) {
+    let pts = simplifyClosed(loop, cfg.simplify);
+    if (cfg.smooth > 0) pts = chaikin(pts, cfg.smooth);
+    if (pts.length < 6) { dropped++; continue; }
+    const n = pts.length >> 1;
+    let area2 = 0;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      area2 += pts[i * 2] * pts[j * 2 + 1] - pts[j * 2] * pts[i * 2 + 1];
+    }
+    const areaPx = area2 / 2;
+    const areaMm = Math.abs(areaPx) * sx * sy;
+    if (areaMm < cfg.minFeature) { dropped++; continue; }
+    const mm = new Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      mm[i * 2] = baseX + (pts[i * 2] - fx) * sx + cfg.offsetX;
+      mm[i * 2 + 1] = baseY + (fy + fh - pts[i * 2 + 1]) * sy + cfg.offsetY;
+    }
+    out.push({ pts: mm, area: areaMm, hole: areaPx < 0 });
+  }
+
+  // 孔洞先切、外轮廓后切；同组内保持光栅扫描顺序（空行程短）
+  out.sort((a, b) => (a.hole === b.hole ? 0 : a.hole ? -1 : 1));
+
+  // 每条轮廓旋转到离上一个终点最近的起点，减少空行程
+  let cursor = [cfg.offsetX, cfg.offsetY];
+  for (const p of out) {
+    const n = p.pts.length >> 1;
+    let bestI = 0, bestD = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dx = p.pts[i * 2] - cursor[0], dy = p.pts[i * 2 + 1] - cursor[1];
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; bestI = i; }
+    }
+    if (bestI > 0) p.pts = p.pts.slice(bestI * 2).concat(p.pts.slice(0, bestI * 2));
+    cursor = [p.pts[0], p.pts[1]];
+  }
+
+  return { paths: out, dropped, sx, sy, baseX, baseY, frame: [fx, fy, fw, fh] };
+}
+
+/* =====================================================================
+   3. 矢量化主流程
+   ===================================================================== */
+function readVector() {
+  return {
+    detail: clamp(num("#detail", 820), 200, 1600),
+    threshMode: $("#threshMode").value,
+    thresh: clamp(num("#thresh", 128), 1, 254),
+    invert: $("#invert").checked,
+    alphaMode: $("#alphaMode").value,
+    blur: clamp(num("#blur", 0), 0, 6),
+    close: clamp(num("#closeR", 0), 0, 4),
+    minArea: clamp(num("#minArea", 12), 0, 5000),
+    minHole: clamp(num("#minHole", 6), 0, 5000),
+    simplify: clamp(num("#simplify", 1.1), 0.1, 6),
+    smooth: clamp(num("#smooth", 0), 0, 3),
+    minFeature: clamp(num("#minFeature", 0.2), 0, 100),
+    targetW: clamp(num("#targetW", 80), 1, 2000),
+    targetH: clamp(num("#targetH", 80), 1, 2000),
+    fit: $("#fit").value,
+    trim: $("#trim").checked,
+    offsetX: num("#offsetX", 0),
+    offsetY: num("#offsetY", 0)
+  };
+}
+
+let vecTimer = null;
+function scheduleVectorize() {
+  if (!S.img) return;
+  clearTimeout(vecTimer);
+  vecTimer = setTimeout(() => vectorize(false), 160);
+}
+
+function vectorize(refit) {
+  if (!S.img) { toast("先导入一张图片"); return null; }
+  const cfg = readVector();
+  const t0 = performance.now();
+  setState("矢量化中…", "busy");
+  let tr;
+  try {
+    tr = buildTrace(S.img, cfg);
+  } catch (err) {
+    console.error(err);
+    S.vecWarn = [{ level: "error", text: "矢量化失败：" + err.message }];
+    refreshWarnings();
+    setState("失败", "err");
+    return null;
+  }
+
+  const loops = traceContours(tr.mask, tr.w, tr.h);
+  const mapped = mapLoops(loops, tr.w, tr.h, cfg);
+
+  S.trace = tr;
+  S.paths = mapped.paths;
+  const fr = mapped.frame;
+  S.imgRect = {
+    x: mapped.baseX - fr[0] * mapped.sx + cfg.offsetX,
+    y: mapped.baseY + (fr[1] + fr[3] - tr.h) * mapped.sy + cfg.offsetY,
+    w: tr.w * mapped.sx,
+    h: tr.h * mapped.sy
+  };
+  buildPath2D();
+  S.fillPath2d = null;
+
+  // 提示
+  const warns = [];
+  if (!mapped.paths.length) {
+    warns.push({ level: "error", text: "没有找到可用轮廓。试试降低「去杂点」、调阈值、勾选「反相」，或换一张对比更强的图。" });
+  }
+  if (tr.coverage > 0.7 && !cfg.invert) {
+    warns.push({ level: "info", text: "图像约 " + Math.round(tr.coverage * 100) + "% 是深色：轮廓模式只保留外边界，照片类素材建议先提亮/去背景。" });
+  }
+  if (tr.coverage < 0.005) {
+    warns.push({ level: "warn", text: "深色像素不足 0.5%：可能取错前景了，试试「反相」或改用透明通道。" });
+  }
+  if (mapped.dropped > 0) {
+    warns.push({ level: "info", text: "已丢弃 " + mapped.dropped + " 个过小轮廓（小于 " + cfg.minFeature + " mm²）。" });
+  }
+  if (mapped.paths.length > 1200) {
+    warns.push({ level: "warn", text: "轮廓数量 " + mapped.paths.length + "，G 代码会很长；可提高「简化容差」或「去杂点」。" });
+  }
+  if (cfg.fit === "stretch" && S.imgW && S.imgH &&
+      Math.abs(cfg.targetW / cfg.targetH - S.imgW / S.imgH) / (S.imgW / S.imgH) > 0.02) {
+    warns.push({ level: "warn", text: "目标尺寸与图片宽高比不一致，拉伸模式下圆会变成椭圆。" });
+  }
+  S.vecWarn = warns;
+
+  if (cfg.threshMode === "auto") {
+    $("#thresh").value = Math.round(tr.thresh);
+    updateThreshUI();
+  }
+
+  drawMask(tr);
+  updateStats();
+  refreshWarnings();
+  markDirty();
+  if (refit || !S.view.init) { fitView(); S.view.init = true; } else render();
+  updateStats();
+  const ms = Math.round(performance.now() - t0);
+  setState("就绪 · " + ms + " ms", "ok");
+  if (S.hasGenerated) generate(true);
+  return S.stats;
+}
+
+function buildPath2D() {
+  const p = new Path2D();
+  for (const path of S.paths) {
+    const a = path.pts;
+    p.moveTo(a[0], a[1]);
+    for (let i = 2; i < a.length; i += 2) p.lineTo(a[i], a[i + 1]);
+    p.closePath();
+  }
+  S.path2d = p;
+}
+
+function updateStats() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, pts = 0, holes = 0;
+  for (const p of S.paths) {
+    pts += p.pts.length / 2;
+    if (p.hole) holes++;
+    for (let i = 0; i < p.pts.length; i += 2) {
+      const x = p.pts[i], y = p.pts[i + 1];
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  S.stats.paths = S.paths.length;
+  S.stats.holes = holes;
+  S.stats.points = pts;
+  S.stats.w = S.paths.length ? x1 - x0 : 0;
+  S.stats.h = S.paths.length ? y1 - y0 : 0;
+  S.bbox = S.paths.length ? [x0, y0, x1, y1] : null;
+
+  const cfg = readVector();
+  S.stats.s = computeS(num("#power", 0), Math.max(1, Math.round(num("#maxS", 1000))));
+  S.stats.est = S.stats.burn > 0 ? (S.stats.burn / Math.max(1, num("#feed", 500)) + S.stats.travel / 3000) : 0;
+
+  $("#statPaths").textContent = "路径 " + S.stats.paths + (holes ? "（孔 " + holes + "）" : "");
+  $("#statPoints").textContent = "顶点 " + (pts >= 1000 ? (pts / 1000).toFixed(1) + "k" : pts);
+  $("#statSize").textContent = S.paths.length ? "尺寸 " + S.stats.w.toFixed(2) + " × " + S.stats.h.toFixed(2) + " mm" : "尺寸 —";
+  $("#statS").textContent = "S " + S.stats.s;
+  $("#statTime").textContent = S.stats.est > 0 ? "≈ " + S.stats.est.toFixed(1) + " min" : "用时 —";
+  $("#sizeHint").textContent = cfg.targetW + " × " + cfg.targetH + " mm";
+  $("#imgMeta").textContent = S.img ? S.imgW + "×" + S.imgH : "未导入";
+  $("#stageEmpty").classList.toggle("hide", !!S.img);
+}
+
+/* =====================================================================
+   4. 预览渲染
+   ===================================================================== */
+function resizeCanvas() {
+  const c = S.canvas;
+  if (!c) return null;
+  const rect = c.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = Math.max(1, Math.round(rect.width)), H = Math.max(1, Math.round(rect.height));
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
+    c.width = Math.round(W * dpr);
+    c.height = Math.round(H * dpr);
+  }
+  return { W, H, dpr, ctx: c.getContext("2d") };
+}
+
+function gridStep(minPx) {
+  const steps = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+  const z = S.view.zoom;
+  for (const s of steps) if (s * z >= minPx) return s;
+  return 2000;
+}
+
+function render() {
+  const c = S.canvas;
+  if (!c) return;
+  const r = resizeCanvas();
+  const { W, H, dpr, ctx } = r;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0b1113";
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid(ctx, W, H);
+
+  if (S.layers.src && S.img && S.imgRect) {
+    const ir = S.imgRect;
+    const x = S.view.tx + ir.x * S.view.zoom;
+    const y = S.view.ty - (ir.y + ir.h) * S.view.zoom;
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(S.img, x, y, ir.w * S.view.zoom, ir.h * S.view.zoom);
+    ctx.restore();
+  }
+
+  drawBed(ctx);
+
+  if (S.layers.vec && S.path2d && S.paths.length) {
+    ctx.save();
+    ctx.transform(S.view.zoom, 0, 0, -S.view.zoom, S.view.tx, S.view.ty);
+    ctx.lineWidth = 1.1 / S.view.zoom;
+    ctx.strokeStyle = "rgba(79,224,207,.95)";
+    ctx.lineJoin = "round";
+    ctx.stroke(S.path2d);
+    ctx.restore();
+  }
+
+  if (S.layers.path && S.fillPath2d) {
+    ctx.save();
+    ctx.transform(S.view.zoom, 0, 0, -S.view.zoom, S.view.tx, S.view.ty);
+    ctx.lineWidth = 0.8 / S.view.zoom;
+    ctx.strokeStyle = "rgba(255,122,26,.62)";
+    ctx.stroke(S.fillPath2d);
+    ctx.restore();
+  }
+
+  drawBBox(ctx);
+  drawOrigin(ctx, W, H);
+  drawRulers(ctx, W, H);
+}
+
+function drawGrid(ctx, W, H) {
+  const z = S.view.zoom;
+  const step = gridStep(14);
+  const left = (0 - S.view.tx) / z, right = (W - S.view.tx) / z;
+  const top = (S.view.ty - 0) / z, bottom = (S.view.ty - H) / z;
+  ctx.save();
+  ctx.lineWidth = 1;
+  const startX = Math.floor(left / step) * step;
+  for (let mm = startX; mm <= right; mm += step) {
+    const x = Math.round(S.view.tx + mm * z) + 0.5;
+    const major = Math.abs(mm % (step * 5)) < 1e-6;
+    ctx.strokeStyle = major ? "rgba(120,165,165,.13)" : "rgba(120,165,165,.055)";
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  const startY = Math.floor(bottom / step) * step;
+  for (let mm = startY; mm <= top; mm += step) {
+    const y = Math.round(S.view.ty - mm * z) + 0.5;
+    const major = Math.abs(mm % (step * 5)) < 1e-6;
+    ctx.strokeStyle = major ? "rgba(120,165,165,.13)" : "rgba(120,165,165,.055)";
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBed(ctx) {
+  const bw = num("#bedW", 0), bh = num("#bedH", 0);
+  if (!(bw > 0 && bh > 0)) return;
+  const z = S.view.zoom;
+  const x = S.view.tx, y = S.view.ty;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,93,115,.55)";
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y - bh * z + 0.5, bw * z, bh * z);
+  ctx.restore();
+}
+
+function drawBBox(ctx) {
+  if (!S.bbox) return;
+  const z = S.view.zoom;
+  const [x0, y0, x1, y1] = S.bbox;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,122,26,.38)";
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    S.view.tx + x0 * z, S.view.ty - y1 * z,
+    Math.max(1, (x1 - x0) * z), Math.max(1, (y1 - y0) * z)
+  );
+  ctx.restore();
+}
+
+function drawOrigin(ctx, W, H) {
+  const x = S.view.tx, y = S.view.ty;
+  if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,122,26,.7)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x - 7, y + 0.5); ctx.lineTo(x + 7, y + 0.5);
+  ctx.moveTo(x + 0.5, y - 7); ctx.lineTo(x + 0.5, y + 7);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,122,26,.8)";
+  ctx.font = "9px ui-monospace,Menlo,monospace";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  ctx.fillText("0,0", x + 8, y - 4);
+  ctx.restore();
+}
+
+function drawRulers(ctx, W, H) {
+  const z = S.view.zoom;
+  const labStep = gridStep(58);
+  const tickStep = gridStep(9);
+  ctx.save();
+  ctx.fillStyle = "rgba(11,17,19,.86)";
+  ctx.fillRect(0, 0, W, 19);
+  ctx.fillRect(0, 0, 28, H);
+  ctx.strokeStyle = "rgba(120,165,165,.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 19.5); ctx.lineTo(W, 19.5);
+  ctx.moveTo(28.5, 0); ctx.lineTo(28.5, H);
+  ctx.stroke();
+
+  const left = (0 - S.view.tx) / z, right = (W - S.view.tx) / z;
+  const top = S.view.ty / z, bottom = (S.view.ty - H) / z;
+
+  ctx.font = "9px ui-monospace,Menlo,monospace";
+  ctx.fillStyle = "#5c7273";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  for (let mm = Math.floor(left / tickStep) * tickStep; mm <= right; mm += tickStep) {
+    const x = Math.round(S.view.tx + mm * z) + 0.5;
+    if (x < 28 || x > W) continue;
+    const major = Math.abs(mm % labStep) < 1e-6;
+    ctx.strokeStyle = "rgba(140,180,180,.35)";
+    ctx.beginPath(); ctx.moveTo(x, major ? 12 : 16); ctx.lineTo(x, 19); ctx.stroke();
+    if (major) {
+      ctx.fillStyle = "#5c7273";
+      ctx.fillText(String(Math.round(mm)), x, 3);
+    }
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  for (let mm = Math.floor(bottom / tickStep) * tickStep; mm <= top; mm += tickStep) {
+    const y = Math.round(S.view.ty - mm * z) + 0.5;
+    if (y < 19 || y > H) continue;
+    const major = Math.abs(mm % labStep) < 1e-6;
+    ctx.strokeStyle = "rgba(140,180,180,.35)";
+    ctx.beginPath(); ctx.moveTo(major ? 21 : 25, y); ctx.lineTo(28, y); ctx.stroke();
+    if (major) {
+      ctx.fillStyle = "#5c7273";
+      ctx.fillText(String(Math.round(mm)), 3, y);
+    }
+  }
+  ctx.restore();
+}
+
+function fitView() {
+  const c = S.canvas;
+  if (!c) return;
+  const rect = c.getBoundingClientRect();
+  const cfg = readVector();
+  const W = Math.max(cfg.targetW, 1), H = Math.max(cfg.targetH, 1);
+  const pad = 54;
+  const z = Math.max(0.02, Math.min((rect.width - pad * 2) / W, (rect.height - pad * 2) / H));
+  S.view.zoom = z;
+  S.view.tx = (rect.width - W * z) / 2;
+  S.view.ty = (rect.height + H * z) / 2;
+  render();
+}
+
+/* =====================================================================
+   5. G 代码
+   ===================================================================== */
+class GCodeBuilder {
+  constructor(mode) {
+    this.mode = mode === "m4" ? "M4" : "M3";
+    this.lines = [];
+    this.on = false;
+    this.pos = null;
+    this.burn = 0;
+    this.travel = 0;
+    this.bbox = null;
+  }
+  comment(t) { this.lines.push("; " + t); }
+  raw(t) { this.lines.push(t); }
+  touch(x, y) {
+    if (!this.bbox) this.bbox = [x, y, x, y];
+    else {
+      this.bbox[0] = Math.min(this.bbox[0], x); this.bbox[1] = Math.min(this.bbox[1], y);
+      this.bbox[2] = Math.max(this.bbox[2], x); this.bbox[3] = Math.max(this.bbox[3], y);
+    }
+  }
+  rapid(x, y, track = true) {
+    if (this.on) throw new Error("internal: rapid with laser on");
+    if (this.pos) {
+      const d = Math.hypot(x - this.pos[0], y - this.pos[1]);
+      if (d < 1e-7) return;
+      this.travel += d;
+    }
+    this.lines.push("G0 X" + fmt(x) + " Y" + fmt(y));
+    this.pos = [x, y];
+    if (track) this.touch(x, y);
+  }
+  cut(x, y) {
+    if (!this.on) throw new Error("internal: cut with laser off");
+    const d = Math.hypot(x - this.pos[0], y - this.pos[1]);
+    if (d < 1e-7) return;
+    this.burn += d;
+    this.lines.push("G1 X" + fmt(x) + " Y" + fmt(y));
+    this.pos = [x, y];
+    this.touch(x, y);
+  }
+  laserOn(s) { this.lines.push(this.mode + " S" + s); this.on = true; }
+  laserOff() { if (this.on) { this.lines.push("M5"); this.on = false; } }
+}
+
+function readMach() {
+  const mat = $("#material").value;
+  const laserW = parseFloat($("#laserW").value) || 10;
+  const info = pickTier(mat, laserW);
+  const job = document.querySelector('input[name="job"]:checked').value;
+  const block = getBlock(info.tier, job);
+  const cfg = readVector();
+  return {
+    mat, laserW, job, info, block,
+    maxS: Math.max(1, Math.round(num("#maxS", 1000))),
+    power: clamp(num("#power", block.power), 0, 100),
+    feed: num("#feed", block.feed),
+    passes: Math.max(1, Math.round(num("#passes", block.passes))),
+    spacing: Math.max(0.05, num("#spacing", 0.2)),
+    angle: num("#angle", 0),
+    outline: $("#outline").value,
+    laserMode: $("#laserMode").value,
+    park: $("#park").checked,
+    bed: [num("#bedW", 0), num("#bedH", 0)],
+    targetW: cfg.targetW,
+    targetH: cfg.targetH,
+    offsetX: cfg.offsetX,
+    offsetY: cfg.offsetY
+  };
+}
+
+function traceOutline(g, pts, s, feed, passes) {
+  const n = pts.length;
+  if (n < 6) return;
+  for (let p = 0; p < passes; p++) {
+    g.rapid(pts[0], pts[1]);
+    g.laserOn(s);
+    g.raw("G1 F" + feed);
+    for (let i = 2; i < n; i += 2) g.cut(pts[i], pts[i + 1]);
+    g.cut(pts[0], pts[1]);
+    g.laserOff();
+  }
+}
+
+function rotatePt(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [x * c - y * s, x * s + y * c];
+}
+function unrotatePt(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [x * c + y * s, -x * s + y * c];
+}
+
+function planHatch(paths, spacing, angle) {
+  const a = angle * Math.PI / 180;
+  const edges = [];
+  let minY = Infinity, maxY = -Infinity;
+  for (const path of paths) {
+    const p = path.pts, n = p.length >> 1;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const r1 = rotatePt(p[i * 2], p[i * 2 + 1], a);
+      const r2 = rotatePt(p[j * 2], p[j * 2 + 1], a);
+      if (r1[1] === r2[1]) continue;
+      edges.push(r1[0], r1[1], r2[0], r2[1]);
+      if (r1[1] < minY) minY = r1[1]; if (r2[1] < minY) minY = r2[1];
+      if (r1[1] > maxY) maxY = r1[1]; if (r2[1] > maxY) maxY = r2[1];
+    }
+  }
+  if (!edges.length) return { rows: [], rowCount: 0, total: 0 };
+  const rowCount = Math.max(1, Math.floor((maxY - minY) / spacing) + 1);
+  const buckets = new Array(rowCount);
+  let incidence = 0;
+  for (let e = 0; e < edges.length; e += 4) {
+    const y1 = edges[e + 1], y2 = edges[e + 3];
+    const lo = Math.min(y1, y2), hi = Math.max(y1, y2);
+    let i0 = Math.ceil((lo - minY) / spacing - 1e-9);
+    let i1 = Math.ceil((hi - minY) / spacing - 1e-9) - 1;
+    if (i1 < 0 || i0 > rowCount - 1) continue;
+    i0 = Math.max(0, i0); i1 = Math.min(rowCount - 1, i1);
+    for (let i = i0; i <= i1; i++) {
+      (buckets[i] || (buckets[i] = [])).push(e);
+      incidence++;
+    }
+  }
+
+  const rows = [];
+  let total = 0;
+  for (let i = 0; i < rowCount; i++) {
+    const bucket = buckets[i];
+    if (!bucket) continue;
+    const y = minY + i * spacing;
+    const xs = [];
+    for (const e of bucket) {
+      const x1 = edges[e], y1 = edges[e + 1], x2 = edges[e + 2], y2 = edges[e + 3];
+      if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
+        const t = (y - y1) / (y2 - y1);
+        xs.push(x1 + t * (x2 - x1));
+      }
+    }
+    if (xs.length < 2) continue;
+    xs.sort((p, q) => p - q);
+    let spans = [];
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      if (xs[k + 1] - xs[k] > 0.06) spans.push([xs[k], xs[k + 1]]);
+    }
+    if (!spans.length) continue;
+    if (i % 2 === 1) spans = spans.slice().reverse().map(([p, q]) => [q, p]);
+    rows.push({ y, spans });
+    total += spans.length;
+  }
+  return { rows, rowCount, total, incidence };
+}
+
+function buildFillPath2D(plan, angle) {
+  const a = angle * Math.PI / 180;
+  const p = new Path2D();
+  for (const row of plan.rows) {
+    for (const [xa, xb] of row.spans) {
+      const p0 = unrotatePt(xa, row.y, a);
+      const p1 = unrotatePt(xb, row.y, a);
+      p.moveTo(p0[0], p0[1]);
+      p.lineTo(p1[0], p1[1]);
+    }
+  }
+  return p;
+}
+
+function generate(silent) {
+  if (!S.paths.length) {
+    S.genWarn = [{ level: "error", text: "还没有可用矢量：先导入图片并调整阈值。" }];
+    refreshWarnings();
+    if (!silent) toast("还没有可用矢量");
+    return;
+  }
+  const cfg = readMach();
+  if (!(cfg.feed > 0)) {
+    S.genWarn = [{ level: "error", text: "速度必须大于 0 mm/min。" }];
+    refreshWarnings();
+    return;
+  }
+  const s = computeS(cfg.power, cfg.maxS);
+  const g = new GCodeBuilder(cfg.laserMode);
+  const warns = [];
+  let spans = 0, rows = 0;
+
+  if (cfg.job === "fill") {
+    const plan = planHatch(S.paths, cfg.spacing, cfg.angle);
+    spans = plan.total;
+    rows = plan.rows.length;
+    if (plan.incidence > 6e6) {
+      warns.push({ level: "warn", text: "填充扫描规模过大，浏览器可能卡顿；建议加大线距或缩小尺寸。" });
+    }
+    if (cfg.outline === "before") {
+      S.paths.forEach((p, i) => {
+        g.comment("--- outline poly" + (i + 1) + " (S=" + s + ", F=" + cfg.feed + ") ---");
+        traceOutline(g, p.pts, s, cfg.feed, 1);
+      });
+    }
+    g.comment("--- hatch fill (S=" + s + ", F=" + cfg.feed + ", spacing=" + cfg.spacing + "mm, angle=" + cfg.angle + "deg, spans=" + spans + ") ---");
+    g.laserOff();
+    g.raw("G1 F" + cfg.feed);
+    const a = cfg.angle * Math.PI / 180;
+    for (let pass = 0; pass < cfg.passes; pass++) {
+      for (const row of plan.rows) {
+        for (const [xa, xb] of row.spans) {
+          const p0 = unrotatePt(xa, row.y, a);
+          const p1 = unrotatePt(xb, row.y, a);
+          g.laserOff();
+          g.rapid(p0[0], p0[1]);
+          g.laserOn(s);
+          g.cut(p1[0], p1[1]);
+        }
+      }
+    }
+    g.laserOff();
+    if (cfg.outline === "after") {
+      S.paths.forEach((p, i) => {
+        g.comment("--- outline poly" + (i + 1) + " (S=" + s + ", F=" + cfg.feed + ") ---");
+        traceOutline(g, p.pts, s, cfg.feed, 1);
+      });
+    }
+    S.fillPath2d = buildFillPath2D(plan, cfg.angle);
+  } else {
+    S.fillPath2d = null;
+    S.paths.forEach((p, i) => {
+      const kind = p.hole ? "hole" : "outer";
+      g.comment("--- " + cfg.job + " poly" + (i + 1) + " (" + kind + ", S=" + s + ", F=" + cfg.feed + ", passes=" + cfg.passes + ") ---");
+      traceOutline(g, p.pts, s, cfg.feed, cfg.passes);
+    });
+  }
+
+  g.laserOff();
+  if (cfg.park) g.rapid(cfg.offsetX, cfg.offsetY, false);
+  g.raw("M2");
+
+  const est = g.burn / cfg.feed + g.travel / 3000;
+  const bbox = g.bbox;
+  const bboxText = bbox
+    ? "X" + bbox[0].toFixed(2) + ".." + bbox[2].toFixed(2) + " Y" + bbox[1].toFixed(2) + ".." + bbox[3].toFixed(2) +
+      " (" + (bbox[2] - bbox[0]).toFixed(2) + " x " + (bbox[3] - bbox[1]).toFixed(2) + " mm)"
+    : "n/a";
+
+  if (s === 0) warns.push({ level: "warn", text: "S=0，激光不会出光：提高功率或检查 $30。" });
+  if (bbox) {
+    if (bbox[0] < -0.01 || bbox[1] < -0.01) {
+      warns.push({ level: "warn", text: "刀路出现负坐标（X" + bbox[0].toFixed(2) + ", Y" + bbox[1].toFixed(2) + "），工件可能超出机器原点。" });
+    }
+    if (cfg.bed && cfg.bed[0] > 0 && cfg.bed[1] > 0) {
+      if (bbox[2] > cfg.bed[0] + 0.01 || bbox[3] > cfg.bed[1] + 0.01) {
+        warns.push({ level: "warn", text: "刀路超出床身 " + cfg.bed[0] + "×" + cfg.bed[1] + " mm（包围盒 " + (bbox[2] - bbox[0]).toFixed(1) + "×" + (bbox[3] - bbox[1]).toFixed(1) + " mm）。" });
+      }
+    }
+  }
+  if (est > 120) warns.push({ level: "warn", text: "预计耗时 " + est.toFixed(0) + " 分钟，长时间加工请确认排烟与看守。" });
+  if (S.stats.points > 60000) warns.push({ level: "warn", text: "顶点数 " + Math.round(S.stats.points) + "，G 代码较大；可提高简化容差。" });
+  if (cfg.laserMode === "m4") warns.push({ level: "info", text: "M4 动态功率需要 GRBL $32=1，否则 S 不会随速度调制。" });
+
+  const header = [
+    "Job: " + cfg.job + " | Material: " + MATERIALS[cfg.mat].name + " | Laser: " + cfg.laserW + "W (tier " + cfg.info.label + "W)",
+    "Power: " + cfg.power + "% -> S" + s + "/" + cfg.maxS + " | Feed: " + cfg.feed + " mm/min | Passes: " + cfg.passes,
+    "Target: " + cfg.targetW + "x" + cfg.targetH + " mm | Source: " + (S.trace ? S.trace.w + "x" + S.trace.h + " px" : "-") + " | Paths: " + S.paths.length,
+    "BBox: " + bboxText + " | Burn: " + g.burn.toFixed(1) + " mm | Est: " + est.toFixed(1) + " min",
+    "WARNING: starting parameters - test on scrap first."
+  ];
+  if (cfg.laserMode === "m4") header.push("Laser mode M4 (dynamic power): GRBL must have $32=1");
+
+  const prelude = header.map((h) => "; " + h).concat(["G21", "G90", "G17", "M5"]);
+  S.gcode = prelude.join("\n") + "\n" + g.lines.join("\n") + "\n";
+
+  S.stats.burn = g.burn;
+  S.stats.travel = g.travel;
+  S.stats.est = est;
+  S.stats.spans = spans;
+  S.stats.rows = rows;
+  S.stats.s = s;
+
+  S.genWarn = warns;
+  S.svg = buildSVG(cfg);
+  S.hasGenerated = true;
+  S.dirty = false;
+
+  showGcode();
+  showSummary(cfg, s, bbox, est);
+  refreshWarnings();
+  updateStats();
+  render();
+  $("#gcodeMeta").textContent = (S.gcode.split("\n").length - 1) + " 行 · " + (S.gcode.length / 1024).toFixed(1) + " KB";
+  $("#statInline").textContent = "S" + s + " · " + cfg.feed + " mm/min · " + cfg.passes + " 遍";
+  setState("已生成 G 代码", "ok");
+  if (!silent) toast("G 代码已生成");
+}
+
+function showGcode() {
+  const lines = S.gcode.split("\n");
+  const limit = 420;
+  const head = lines.slice(0, limit).map((l) => {
+    const esc = l.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    return l.startsWith(";") ? '<span class="cmt">' + esc + "</span>" : esc;
+  }).join("\n");
+  $("#gcodeOut").innerHTML = head + (lines.length > limit ? "\n\n; … 共 " + lines.length + " 行，下载查看完整文件" : "");
+}
+
+function showSummary(cfg, s, bbox, est) {
+  const items = [
+    ["S", s + " / " + cfg.maxS],
+    ["F", cfg.feed + " mm/min"],
+    ["遍数", String(cfg.passes)],
+    ["材料", MATERIALS[cfg.mat].name.split("(")[0].trim()],
+    ["档位", cfg.info.label + "W"],
+    ["光功率", (cfg.power / 100 * cfg.laserW).toFixed(1) + " W"],
+    ["路径", S.stats.paths + (S.stats.holes ? "（孔 " + S.stats.holes + "）" : "")],
+    ["包围盒", bbox ? (bbox[2] - bbox[0]).toFixed(1) + "×" + (bbox[3] - bbox[1]).toFixed(1) + " mm" : "—"],
+    ["预计", est.toFixed(1) + " min"]
+  ];
+  if (cfg.job === "fill") items.push(["填充", cfg.spacing + " mm / " + cfg.angle + "° / " + S.stats.spans + " 段"]);
+  $("#summary").innerHTML = items.map(([k, v]) => '<span class="chip">' + k + " <b>" + v + "</b></span>").join("");
+}
+
+function buildSVG(cfg) {
+  const w = cfg.targetW, h = cfg.targetH;
+  const out = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + 'mm" height="' + h + 'mm" viewBox="0 0 ' + w + ' ' + h + '">',
+    "<!-- laser-gcode vectorizer | " + (S.imgName || "image").replace(/--/g, "-") + " | " + S.paths.length + " paths -->",
+    '<g fill="none" stroke="#000000" stroke-width="0.15" stroke-linejoin="round">'
+  ];
+  for (const p of S.paths) {
+    const a = p.pts;
+    let d = "";
+    for (let i = 0; i < a.length; i += 2) {
+      d += (i === 0 ? "M" : "L") + a[i].toFixed(3) + " " + (h - a[i + 1]).toFixed(3) + " ";
+    }
+    out.push('<path d="' + d.trim() + ' Z"/>');
+  }
+  out.push("</g>", "</svg>");
+  return out.join("\n");
+}
+
+/* =====================================================================
+   6. 材料与参数
+   ===================================================================== */
+function materialKeys() {
+  return Object.keys(MATERIALS).filter((k) => !k.startsWith("_")).sort();
+}
+
+function buildMaterials() {
+  const sel = $("#material");
+  sel.innerHTML = "";
+  for (const k of materialKeys()) {
+    const o = document.createElement("option");
+    o.value = k;
+    o.textContent = MATERIALS[k].name;
+    sel.appendChild(o);
+  }
+  sel.value = "plywood_3mm";
+}
+
+function pickTier(material, laserW) {
+  const tiers = MATERIALS[material].tiers;
+  const keys = Object.keys(tiers).map(Number).sort((a, b) => a - b);
+  let chosen = keys.find((k) => k >= laserW);
+  let warning = null;
+  if (chosen === undefined) {
+    chosen = keys[keys.length - 1];
+    warning = "激光器 " + laserW + "W 高于表格最高档 " + chosen + "W：按最高档参数输出，实际光功率会更高，先降功率试。";
+  } else if (chosen > laserW) {
+    warning = "激光器 " + laserW + "W 不在档位上，取最近的 " + chosen + "W 档；必要时手改功率/遍数。";
+  }
+  return { tier: tiers[String(chosen)], label: String(chosen), warning };
+}
+
+function getBlock(tier, job) {
+  if (job === "fill") return tier.fill || tier.engrave;
+  if (job === "cut") return tier.cut;
+  return tier.engrave;
+}
+
+function applyPreset() {
+  const mat = $("#material").value;
+  const laserW = parseFloat($("#laserW").value) || 10;
+  let job = document.querySelector('input[name="job"]:checked').value;
+  const info = pickTier(mat, laserW);
+
+  if (job === "cut" && (!info.tier.cut || info.tier.cut.passes === 0)) {
+    setJob("engrave");
+    job = "engrave";
+    toast("这种材料不能切穿，已切到「描边」");
+  }
+  const block = getBlock(info.tier, job);
+  $("#power").value = block.power;
+  $("#feed").value = block.feed;
+  $("#passes").value = block.passes;
+  $("#tierHint").textContent = info.label + "W 档";
+  $("#matBadge").textContent = MATERIALS[mat].name;
+  $("#cutHint").textContent = (info.tier.cut && info.tier.cut.passes > 0) ? "可切" : "只能雕";
+  $("#safetyNote").textContent = SAFETY[mat] || "";
+  S.matWarn = info.warning;
+  refreshWarnings();
+  updateSReadout();
+  markDirty();
+}
+
+function setJob(job) {
+  $$('input[name="job"]').forEach((r) => { r.checked = r.value === job; });
+  $("#fillOpts").hidden = job !== "fill";
+  const fb = $("#layerFill");
+  if (fb) {
+    fb.disabled = job !== "fill";
+    if (job === "fill") S.layers.path = true;
+    fb.classList.toggle("on", job === "fill" && S.layers.path);
+    fb.title = job === "fill" ? "填充扫描线预览" : "仅填充模式显示";
+  }
+  if (job !== "fill") S.fillPath2d = null;
+}
+
+function updateSReadout() {
+  const pct = clamp(num("#power", 0), 0, 100);
+  const maxS = Math.max(1, Math.round(num("#maxS", 1000)));
+  const laserW = parseFloat($("#laserW").value) || 10;
+  $("#sReadout").textContent = "S " + computeS(pct, maxS);
+  $("#optical").textContent = (pct / 100 * laserW).toFixed(1) + " W";
+}
+
+function markDirty() {
+  if (S.hasGenerated) {
+    S.dirty = true;
+    $("#gcodeMeta").textContent = "参数已改 · 重新生成";
+  }
+}
+
+/* =====================================================================
+   7. 图像载入与示例
+   ===================================================================== */
+function setImage(img, name) {
+  S.img = img;
+  S.imgName = name || "image.png";
+  S.imgW = img.naturalWidth;
+  S.imgH = img.naturalHeight;
+  S.view.init = false;
+
+  $("#dropZone").classList.add("has");
+  $("#thumb").src = img.src;
+  $("#dropTitle").textContent = S.imgName.length > 30 ? S.imgName.slice(0, 27) + "…" : S.imgName;
+  $("#dropSub").textContent = S.imgW + " × " + S.imgH + " px · 点击可换图";
+  $("#imgMeta").textContent = S.imgW + "×" + S.imgH;
+
+  if ($("#lockAspect").checked && S.imgW && S.imgH) {
+    const long = 80;
+    if (S.imgW >= S.imgH) {
+      $("#targetW").value = long;
+      $("#targetH").value = Math.max(1, Math.round(long * S.imgH / S.imgW * 10) / 10);
+    } else {
+      $("#targetH").value = long;
+      $("#targetW").value = Math.max(1, Math.round(long * S.imgW / S.imgH * 10) / 10);
+    }
+  }
+  fitView();
+  vectorize(true);
+  updateStats();
+}
+
+function loadFile(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { toast("请选择 PNG / JPEG 图片"); return; }
+  if (/svg/i.test(file.type)) { toast("SVG 请直接用脚本处理：generate_gcode.py --svg"); return; }
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { URL.revokeObjectURL(url); setImage(img, file.name || "image.png"); };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("图片读取失败"); };
+  img.src = url;
+}
+
+function loadDataURL(name, dataURL) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { setImage(img, name); resolve({ w: img.naturalWidth, h: img.naturalHeight, stats: S.stats }); };
+    img.onerror = () => reject(new Error("bad image"));
+    img.src = dataURL;
+  });
+}
+
+function sampleCanvas(kind) {
+  const c = document.createElement("canvas");
+  c.width = 1000; c.height = 1000;
+  const x = c.getContext("2d");
+  x.fillStyle = "#ffffff"; x.fillRect(0, 0, 1000, 1000);
+  x.fillStyle = "#000000";
+
+  if (kind === "gear") {
+    const cx = 500, cy = 500, R = 360, r = 292, teeth = 14;
+    x.beginPath();
+    for (let i = 0; i < teeth * 2; i++) {
+      const rad = i % 2 === 0 ? R : r;
+      const a0 = (i / (teeth * 2)) * Math.PI * 2 - Math.PI / 2;
+      const a1 = ((i + 1) / (teeth * 2)) * Math.PI * 2 - Math.PI / 2;
+      x.lineTo(cx + Math.cos(a0) * rad, cy + Math.sin(a0) * rad);
+      x.lineTo(cx + Math.cos(a1) * rad, cy + Math.sin(a1) * rad);
+    }
+    x.closePath(); x.fill();
+    x.fillStyle = "#ffffff";
+    x.beginPath(); x.arc(cx, cy, 118, 0, Math.PI * 2); x.fill();
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2 + 0.3;
+      x.beginPath(); x.arc(cx + Math.cos(a) * 205, cy + Math.sin(a) * 205, 32, 0, Math.PI * 2); x.fill();
+    }
+  } else if (kind === "star") {
+    const cx = 500, cy = 505, R = 360, r = 150, points = 5;
+    x.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const rad = i % 2 === 0 ? R : r;
+      const a = i / (points * 2) * Math.PI * 2 - Math.PI / 2;
+      const px = cx + Math.cos(a) * rad, py = cy + Math.sin(a) * rad;
+      i ? x.lineTo(px, py) : x.moveTo(px, py);
+    }
+    x.closePath(); x.fill();
+    x.fillStyle = "#ffffff";
+    x.beginPath(); x.arc(cx, cy, 62, 0, Math.PI * 2); x.fill();
+  } else {
+    x.beginPath();
+    x.moveTo(500, 110);
+    x.bezierCurveTo(770, 260, 810, 570, 500, 880);
+    x.bezierCurveTo(190, 570, 230, 260, 500, 110);
+    x.closePath(); x.fill();
+    x.strokeStyle = "#000000";
+    x.lineWidth = 22;
+    x.lineCap = "round";
+    x.beginPath(); x.moveTo(500, 840); x.quadraticCurveTo(510, 910, 480, 965); x.stroke();
+  }
+  return c;
+}
+
+function loadSample(kind) {
+  const c = sampleCanvas(kind);
+  loadDataURL("sample-" + kind + ".png", c.toDataURL("image/png"));
+}
+
+/* =====================================================================
+   8. 导出
+   ===================================================================== */
+function baseName() {
+  return (S.imgName.replace(/\.[^.]+$/, "").replace(/[^\w\u4e00-\u9fa5-]+/g, "_").slice(0, 40) || "laser");
+}
+
+function download(name, text, mime) {
+  const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/* =====================================================================
+   9. UI 辅助
+   ===================================================================== */
+function setState(text, kind) {
+  const el = $("#statState");
+  el.innerHTML = '<span class="dot ' + (kind || "") + '"></span>' + text;
+}
+
+function refreshWarnings() {
+  const el = $("#warnings");
+  el.innerHTML = "";
+  const all = [];
+  if (S.matWarn) all.push({ level: "warn", text: S.matWarn });
+  for (const w of S.vecWarn) all.push(w);
+  for (const w of S.genWarn) all.push(w);
+  const seen = new Set();
+  S.warnings = all.filter((w) => {
+    const key = w.level + "|" + w.text;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+  for (const w of S.warnings) {
+    const d = document.createElement("div");
+    d.className = "warn" + (w.level === "error" ? " err" : w.level === "info" ? " info" : "");
+    d.textContent = (w.level === "error" ? "[error] " : w.level === "info" ? "[info] " : "[warn] ") + w.text;
+    el.appendChild(d);
+  }
+}
+
+function drawMask(tr) {
+  const c = $("#maskCanvas");
+  if (!tr) {
+    c.width = 560; c.height = 140;
+    const p = c.getContext("2d");
+    p.fillStyle = "#080e10"; p.fillRect(0, 0, 560, 140);
+    p.strokeStyle = "#1d2c31"; p.setLineDash([4, 4]); p.strokeRect(8.5, 8.5, 543, 123);
+    p.fillStyle = "#5f7c80";
+    p.font = "24px ui-monospace,Menlo,monospace";
+    p.textAlign = "center"; p.textBaseline = "middle";
+    p.fillText("二值化结果会显示在这里", 280, 76);
+    $("#maskCap").textContent = "二值化预览 — 未导入";
+    return;
+  }
+  c.width = tr.w; c.height = tr.h;
+  const ctx = c.getContext("2d");
+  const img = ctx.createImageData(tr.w, tr.h);
+  for (let i = 0; i < tr.w * tr.h; i++) {
+    const o = i * 4;
+    if (tr.mask[i]) { img.data[o] = 255; img.data[o + 1] = 122; img.data[o + 2] = 26; img.data[o + 3] = 255; }
+    else { img.data[o] = 9; img.data[o + 1] = 16; img.data[o + 2] = 18; img.data[o + 3] = 255; }
+  }
+  ctx.putImageData(img, 0, 0);
+  $("#maskCap").textContent = tr.w + "×" + tr.h + " px · 阈值 " + Math.round(tr.thresh) + " · 覆盖 " + (tr.coverage * 100).toFixed(1) + "%";
+}
+
+function updateThreshUI() {
+  const auto = $("#threshMode").value === "auto";
+  $("#thresh").disabled = auto;
+  $("#thresh").classList.toggle("disabled", auto);
+  $("#threshRow").classList.toggle("single", auto);
+  $("#threshVal").textContent = auto ? "自动" : "手动 " + $("#thresh").value;
+}
+
+function syncLabels() {
+  const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+  set("#detailVal", num("#detail", 820) + " px");
+  set("#blurVal", num("#blur", 0) + " px");
+  set("#closeRVal", num("#closeR", 0) + " px");
+  set("#minAreaVal", num("#minArea", 12) + " px²");
+  set("#minHoleVal", num("#minHole", 6) + " px²");
+  set("#minFeatureVal", num("#minFeature", 0.2).toFixed(2) + " mm²");
+  set("#simplifyVal", num("#simplify", 1.1).toFixed(1) + " px");
+  set("#smoothVal", num("#smooth", 0) + " 次");
+}
+
+function bind() {
+  // 图片
+  $("#dropZone").addEventListener("click", () => $("#file").click());
+  $("#dropZone").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); }
+  });
+  $("#file").addEventListener("change", (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+  ["dragenter", "dragover"].forEach((ev) =>
+    $("#dropZone").addEventListener(ev, (e) => { e.preventDefault(); $("#dropZone").classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) =>
+    $("#dropZone").addEventListener(ev, (e) => { e.preventDefault(); $("#dropZone").classList.remove("over"); }));
+  $("#dropZone").addEventListener("drop", (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  window.addEventListener("paste", (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.type && it.type.indexOf("image/") === 0) {
+        const f = it.getAsFile();
+        if (f) { loadFile(f); break; }
+      }
+    }
+  });
+
+  // 示例
+  $$("[data-sample]").forEach((b) => b.addEventListener("click", () => loadSample(b.dataset.sample)));
+  $("#btnSample").addEventListener("click", () => loadSample("gear"));
+  $("#btnEmptyPick").addEventListener("click", () => $("#file").click());
+
+  // 矢量参数
+  const vecIds = ["detail", "threshMode", "thresh", "invert", "alphaMode", "blur", "closeR",
+    "minArea", "minHole", "simplify", "smooth", "minFeature", "targetW", "targetH", "fit", "trim", "offsetX", "offsetY"];
+  for (const id of vecIds) {
+    const el = $("#" + id);
+    el.addEventListener("input", () => { syncLabels(); if (id === "thresh") $("#threshVal").textContent = "手动 " + el.value; scheduleVectorize(); });
+    el.addEventListener("change", () => { syncLabels(); scheduleVectorize(); });
+  }
+  $("#threshMode").addEventListener("change", () => { updateThreshUI(); scheduleVectorize(); });
+
+  // 锁定宽高比
+  $("#lockAspect").addEventListener("change", () => {
+    if ($("#lockAspect").checked && S.imgW) {
+      const w = num("#targetW", 80);
+      $("#targetH").value = Math.max(1, Math.round(w * S.imgH / S.imgW * 10) / 10);
+      scheduleVectorize();
+    }
+  });
+  $("#targetW").addEventListener("input", () => {
+    if ($("#lockAspect").checked && S.imgW) {
+      const w = Math.max(1, num("#targetW", 80));
+      $("#targetH").value = Math.max(1, Math.round(w * S.imgH / S.imgW * 10) / 10);
+    }
+  });
+
+  // 加工参数
+  $$('input[name="job"]').forEach((r) => r.addEventListener("change", () => {
+    if (!r.checked) return;
+    setJob(r.value);
+    applyPreset();
+  }));
+  $("#material").addEventListener("change", applyPreset);
+  $("#laserW").addEventListener("change", applyPreset);
+  $("#btnPreset").addEventListener("click", () => { applyPreset(); toast("已恢复材料库推荐值"); });
+  ["power", "feed", "passes", "maxS", "spacing", "angle", "outline", "laserMode", "park", "bedW", "bedH"].forEach((id) => {
+    const el = $("#" + id);
+    const ev = el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input";
+    el.addEventListener(ev, () => {
+      if (id === "power" || id === "maxS" || id === "laserW") updateSReadout();
+      updateStats();
+      markDirty();
+    });
+  });
+
+  // 生成与下载
+  $("#btnGcode").addEventListener("click", () => generate(false));
+  $("#btnDlGcode").addEventListener("click", () => {
+    if (!S.gcode) { toast("先生成 G 代码"); return; }
+    const cfg = readMach();
+    download(baseName() + "_" + cfg.job + "_" + Math.round(cfg.power) + "pct.gcode", S.gcode, "text/plain;charset=utf-8");
+  });
+  $("#btnDlSvg").addEventListener("click", () => {
+    if (!S.svg) { toast("先生成一次（SVG 与当前参数一起导出）"); return; }
+    download(baseName() + "_vector.svg", S.svg, "image/svg+xml;charset=utf-8");
+  });
+  $("#btnDlJson").addEventListener("click", () => {
+    const cfg = readMach();
+    const project = {
+      app: "laser-gcode-vectorizer",
+      version: 1,
+      image: S.imgName,
+      size: { w: S.stats.w, h: S.stats.h },
+      target: { w: cfg.targetW, h: cfg.targetH },
+      job: cfg.job,
+      material: cfg.mat,
+      laser_w: cfg.laserW,
+      power: cfg.power,
+      feed: cfg.feed,
+      passes: cfg.passes,
+      paths: S.paths.map((p) => Array.from(p.pts, (v) => Math.round(v * 1000) / 1000)),
+      svg: S.svg
+    };
+    download(baseName() + "_project.json", JSON.stringify(project), "application/json");
+  });
+  $("#btnCopy").addEventListener("click", async () => {
+    if (!S.gcode) { toast("先生成 G 代码"); return; }
+    try {
+      await navigator.clipboard.writeText(S.gcode);
+      toast("已复制 " + S.gcode.split("\n").length + " 行");
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = S.gcode;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      toast("已复制");
+    }
+  });
+
+  // 视图
+  $("#btnFit").addEventListener("click", fitView);
+  $$("[data-layer]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.layer;
+    S.layers[k] = !S.layers[k];
+    b.classList.toggle("on", S.layers[k]);
+    render();
+  }));
+
+  // 画布交互
+  const c = S.canvas;
+  let drag = null;
+  c.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = c.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const mmx = (mx - S.view.tx) / S.view.zoom;
+    const mmy = (S.view.ty - my) / S.view.zoom;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    S.view.zoom = clamp(S.view.zoom * factor, 0.01, 80);
+    S.view.tx = mx - mmx * S.view.zoom;
+    S.view.ty = my + mmy * S.view.zoom;
+    render();
+  }, { passive: false });
+
+  c.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, tx: S.view.tx, ty: S.view.ty };
+    c.setPointerCapture(e.pointerId);
+    c.classList.add("dragging");
+  });
+  c.addEventListener("pointermove", (e) => {
+    const rect = c.getBoundingClientRect();
+    const mmx = (e.clientX - rect.left - S.view.tx) / S.view.zoom;
+    const mmy = (S.view.ty - (e.clientY - rect.top)) / S.view.zoom;
+    $("#statCursor").textContent = "X " + mmx.toFixed(1) + " · Y " + mmy.toFixed(1) + " mm";
+    if (!drag) return;
+    S.view.tx = drag.tx + (e.clientX - drag.x);
+    S.view.ty = drag.ty + (e.clientY - drag.y);
+    render();
+  });
+  const endDrag = () => { drag = null; c.classList.remove("dragging"); };
+  c.addEventListener("pointerup", endDrag);
+  c.addEventListener("pointercancel", endDrag);
+  c.addEventListener("dblclick", fitView);
+
+  // 快捷键
+  window.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); generate(false); }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") { e.preventDefault(); $("#file").click(); }
+  });
+}
+
+/* =====================================================================
+   10. 启动
+   ===================================================================== */
+function init() {
+  S.canvas = $("#stage");
+  buildMaterials();
+  bind();
+  syncLabels();
+  updateThreshUI();
+  setJob("cut");
+  applyPreset();
+  drawMask(null);
+  updateStats();
+  setState("待导入图片", "");
+  fitView();
+  requestAnimationFrame(() => { render(); });
+  window.addEventListener("resize", debounce(() => { render(); }, 60));
+
+  window.__studio = {
+    ready: true,
+    state: S,
+    loadDataURL,
+    loadSample,
+    vectorize: (refit) => vectorize(refit !== false),
+    generate: (silent) => { generate(silent !== false); return { gcode: S.gcode, svg: S.svg, stats: S.stats, warnings: S.warnings }; },
+    setJob,
+    applyPreset,
+    getGcode: () => S.gcode,
+    getSvg: () => S.svg,
+    getStats: () => JSON.parse(JSON.stringify(S.stats)),
+    getWarnings: () => S.warnings.map((w) => w.level + ": " + w.text),
+    paths: () => S.paths.map((p) => ({ n: p.pts.length / 2, hole: p.hole, area: p.area })),
+    set: (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) throw new Error("no element #" + id);
+      if (el.type === "checkbox") el.checked = !!val;
+      else el.value = val;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    click: (id) => document.getElementById(id).click(),
+    fit: fitView
+  };
+}
+
+init();
+</script>
+</body>
+</html>
